@@ -1,7 +1,8 @@
 import os
 from flask import Flask
 from .config import config
-from .extensions import db, migrate
+from .extensions import db, migrate, jwt
+from . import models  # noqa: F401 — registers models with SQLAlchemy for migrations
 import importlib
 from .graphql_api import create_graphql_view
 
@@ -17,6 +18,7 @@ def create_app(config_name=None):
 
     db.init_app(app)
     migrate.init_app(app, db)
+    jwt.init_app(app)
 
     app.register_blueprint(api_module.bp, url_prefix=f'/api/{REST_API_V}')
     app.add_url_rule('/graphql', view_func=create_graphql_view(), methods=['GET', 'POST'])

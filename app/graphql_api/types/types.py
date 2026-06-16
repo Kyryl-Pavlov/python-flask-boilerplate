@@ -10,6 +10,11 @@ class HealthStatus:
 
 @strawberry.type
 class Response(Generic[T]):
-    status: str
-    message: str
-    data: Optional[T]
+    success: bool = True
+    message: str = ''
+    data: Optional[T] = None
+
+@strawberry.type
+class AuthPayload:
+    access_token: str
+    refresh_token: Optional[str] = None
