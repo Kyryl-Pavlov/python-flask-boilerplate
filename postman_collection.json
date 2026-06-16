@@ -4,11 +4,9 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8000",
-      "type": "string"
-    }
+    { "key": "base_url", "value": "http://localhost:5000", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -34,6 +32,115 @@
               "body": "{\n  \"status\": \"ok\",\n  \"version\": \"1.0.0\"\n}"
             }
           ]
+        },
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"secret123\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/register",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "auth", "register"]
+                }
+              },
+              "response": [
+                {
+                  "name": "201 Created",
+                  "status": "Created",
+                  "code": 201,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"\",\n  \"data\": {}\n}"
+                }
+              ]
+            },
+            {
+              "name": "Login",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.success && res.data) {",
+                      "  pm.collectionVariables.set('access_token', res.data.access_token);",
+                      "  pm.collectionVariables.set('refresh_token', res.data.refresh_token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"secret123\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/login",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "auth", "login"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"\",\n  \"data\": {\n    \"access_token\": \"<jwt>\",\n    \"refresh_token\": \"<jwt>\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Refresh Token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.success && res.data) {",
+                      "  pm.collectionVariables.set('access_token', res.data.access_token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{refresh_token}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/refresh",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "auth", "refresh"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"\",\n  \"data\": {\n    \"access_token\": \"<jwt>\"\n  }\n}"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -44,18 +151,11 @@
           "name": "Health Query",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"{ health { status message data { version } } }\"\n}",
-              "options": {
-                "raw": { "language": "json" }
-              }
+              "raw": "{\n  \"query\": \"{ health { success message data { version } } }\"\n}",
+              "options": { "raw": { "language": "json" } }
             },
             "url": {
               "raw": "{{base_url}}/graphql",
@@ -69,7 +169,124 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"data\": {\n    \"health\": {\n      \"status\": \"ok\",\n      \"message\": \"The server is up and running\",\n      \"data\": {\n        \"version\": \"1.0.0\"\n      }\n    }\n  }\n}"
+              "body": "{\n  \"data\": {\n    \"health\": {\n      \"success\": true,\n      \"message\": \"The server is up and running\",\n      \"data\": {\n        \"version\": \"1.0.0\"\n      }\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Auth Mutations",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation { register(email: \\\"user@example.com\\\", password: \\\"secret123\\\") { success message } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"register\": {\n      \"success\": true,\n      \"message\": \"\"\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Login",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "const login = res.data && res.data.login;",
+                      "if (login && login.success && login.data) {",
+                      "  pm.collectionVariables.set('access_token', login.data.accessToken);",
+                      "  pm.collectionVariables.set('refresh_token', login.data.refreshToken);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation { login(email: \\\"user@example.com\\\", password: \\\"secret123\\\") { success message data { accessToken refreshToken } } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"login\": {\n      \"success\": true,\n      \"message\": \"\",\n      \"data\": {\n        \"accessToken\": \"<jwt>\",\n        \"refreshToken\": \"<jwt>\"\n      }\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Refresh Token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "const refresh = res.data && res.data.refreshToken;",
+                      "if (refresh && refresh.success && refresh.data) {",
+                      "  pm.collectionVariables.set('access_token', refresh.data.accessToken);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{refresh_token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation { refreshToken { success message data { accessToken } } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"refreshToken\": {\n      \"success\": true,\n      \"message\": \"\",\n      \"data\": {\n        \"accessToken\": \"<jwt>\"\n      }\n    }\n  }\n}"
+                }
+              ]
             }
           ]
         },
@@ -77,18 +294,11 @@
           "name": "Introspection",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"{ __schema { queryType { name } types { name kind } } }\"\n}",
-              "options": {
-                "raw": { "language": "json" }
-              }
+              "options": { "raw": { "language": "json" } }
             },
             "url": {
               "raw": "{{base_url}}/graphql",
