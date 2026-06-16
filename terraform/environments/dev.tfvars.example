@@ -1,0 +1,31 @@
+environment         = "dev"
+github_org          = "YOUR_GITHUB_ORG"
+github_repo         = "YOUR_GITHUB_REPO"
+tf_state_bucket     = "YOUR_ORG-flask-boilerplate-tfstate"
+tf_state_lock_table = "YOUR_ORG-flask-boilerplate-tfstate-lock"
+
+# Bootstrap order:
+#   1. terraform apply -target=module.ecr -var-file=environments/dev.tfvars
+#   2. Push images to ECR (or run the deploy workflow manually)
+#   3. Set the two values below and run terraform apply
+app_image    = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/flask-boilerplate-dev/app:latest"
+worker_image = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/flask-boilerplate-dev/worker:latest"
+
+# Smallest sizes — cost optimised for dev
+rds_instance_class      = "db.t3.micro"
+rds_deletion_protection = false
+rds_backup_retention    = 1
+rds_multi_az            = false
+rds_skip_final_snapshot = true
+
+redis_node_type = "cache.t3.micro"
+
+ecs_cpu           = 512
+ecs_memory        = 1024
+ecs_desired_count = 1
+
+# Leave empty for HTTP-only in dev (no certificate needed)
+certificate_arn = ""
+
+# Higher limit to reduce noise during development
+waf_rate_limit = 2000

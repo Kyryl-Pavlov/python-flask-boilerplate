@@ -1,0 +1,13 @@
+variable "app_name" { type = string }
+variable "environment" { type = string }
+variable "aws_account_id" { type = string }
+variable "aws_region" { type = string }
+variable "s3_bucket_arn" { type = string }
+variable "sqs_queue_arn" { type = string }
+variable "ecr_app_repo_arn" { type = string }
+variable "ecr_worker_repo_arn" { type = string }
+variable "secret_arns" { type = list(string) }
+variable "github_org" { type = string }
+variable "github_repo" { type = string }
+variable "tf_state_bucket" { type = string }
+variable "tf_state_lock_table" { type = string }

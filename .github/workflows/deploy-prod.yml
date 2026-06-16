@@ -1,0 +1,201 @@
+name: Deploy → Production
+
+# Triggered manually. To enable automatic deploys on merge to main:
+#   push:
+#     branches: [main]
+#
+# Approval gate: configure required reviewers in Settings → Environments → production.
+# Approving the Migrate job unlocks the entire pipeline for this run.
+on:
+  workflow_dispatch:
+
+# Required GitHub configuration (Settings → Environments → production):
+#   vars.ECS_CLUSTER  vars.ECS_SERVICE  vars.APP_TASK_FAMILY
+#   vars.VPC_SUBNETS  vars.VPC_SECURITY_GROUPS  vars.LAMBDA_FUNCTION_NAME
+#   vars.ECR_APP_REPO    — from: terraform output ecr_app_repository_name
+#   vars.ECR_WORKER_REPO — from: terraform output ecr_worker_repository_name
+#   vars.AWS_REGION
+#   (all values printed by: terraform output)
+#
+# Repository secret (Settings → Secrets → Actions):
+#   secrets.AWS_ROLE_ARN  — from: terraform output github_actions_role_arn
+
+jobs:
+
+  # ── 1. Build all service images ────────────────────────────────────────────
+  build:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      image-tag:    ${{ github.sha }}
+      ecr-registry: ${{ steps.ecr-login.outputs.registry }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/app/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_APP_REPO }}:${{ github.sha }}
+            ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_APP_REPO }}:main
+
+      - name: Build and push worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: lambda
+          file: lambda/Dockerfile.lambda
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_WORKER_REPO }}:${{ github.sha }}
+            ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_WORKER_REPO }}:main
+
+      # - name: Build and push <service> image
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: .
+      #     file: services/<service>/Dockerfile
+      #     push: true
+      #     tags: |
+      #       ${{ steps.ecr-login.outputs.registry }}/flask-boilerplate/<service>:${{ github.sha }}
+      #       ${{ steps.ecr-login.outputs.registry }}/flask-boilerplate/<service>:main
+
+  # ── 2. Run ALL migrations ──────────────────────────────────────────────────
+  # Approval gate fires here — approving this job approves the entire pipeline.
+  # ⚠ Schema changes must be backward-compatible: old and new task instances
+  #   run simultaneously during rolling updates.
+  migrate:
+    name: Migrate
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Run migrations
+        env:
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          SUBNETS: ${{ vars.VPC_SUBNETS }}
+          SGS:     ${{ vars.VPC_SECURITY_GROUPS }}
+        run: |
+          run_migration() {
+            local family="$1" cmd="$2"
+            echo "→ $family"
+            TASK_ARN=$(aws ecs run-task \
+              --cluster "$CLUSTER" \
+              --task-definition "$family" \
+              --launch-type FARGATE \
+              --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SGS],assignPublicIp=ENABLED}" \
+              --overrides "{\"containerOverrides\":[{\"name\":\"app\",\"command\":$cmd}]}" \
+              --query 'tasks[0].taskArn' --output text)
+            aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK_ARN"
+            EXIT=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK_ARN" \
+              --query 'tasks[0].containers[0].exitCode' --output text)
+            [ "$EXIT" = "0" ] || { echo "✗ $family failed (exit $EXIT)"; exit 1; }
+            echo "✓ $family done"
+          }
+
+          run_migration "${{ vars.APP_TASK_FAMILY }}" '["flask","db","upgrade"]'
+          # run_migration "${{ vars.PAYMENTS_TASK_FAMILY }}" '["python","manage.py","migrate"]'
+
+  # ── 3a. Deploy services (tier order) ──────────────────────────────────────
+  deploy:
+    name: Deploy Services
+    needs: [build, migrate]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      IMAGE_TAG:    ${{ needs.build.outputs.image-tag }}
+      ECR_REGISTRY: ${{ needs.build.outputs.ecr-registry }}
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Tier 1 — services with no inter-service dependencies
+      - name: Deploy app
+        run: |
+          CURRENT=$(aws ecs describe-task-definition \
+            --task-definition "${{ vars.APP_TASK_FAMILY }}" --query taskDefinition)
+          NEW_DEF=$(echo "$CURRENT" | jq \
+            --arg img "${{ env.ECR_REGISTRY }}/${{ vars.ECR_APP_REPO }}:${{ env.IMAGE_TAG }}" \
+            'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)
+             | .containerDefinitions[0].image = $img')
+          ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          aws ecs update-service \
+            --cluster "${{ vars.ECS_CLUSTER }}" \
+            --service  "${{ vars.ECS_SERVICE }}" \
+            --task-definition "$ARN"
+          aws ecs wait services-stable \
+            --cluster "${{ vars.ECS_CLUSTER }}" \
+            --services "${{ vars.ECS_SERVICE }}"
+          echo "✓ app stable"
+
+      # Tier 2 — services that depend on tier-1
+      # - name: Deploy payments
+      #   run: |  ... same pattern, vars.PAYMENTS_TASK_FAMILY / vars.PAYMENTS_SERVICE
+
+  # ── 3b. Deploy workers (parallel with services) ────────────────────────────
+  deploy-workers:
+    name: Deploy Workers
+    needs: [build, migrate]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      IMAGE_TAG:    ${{ needs.build.outputs.image-tag }}
+      ECR_REGISTRY: ${{ needs.build.outputs.ecr-registry }}
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Update SQS worker
+        run: |
+          aws lambda update-function-code \
+            --function-name "${{ vars.LAMBDA_FUNCTION_NAME }}" \
+            --image-uri "${{ env.ECR_REGISTRY }}/${{ vars.ECR_WORKER_REPO }}:${{ env.IMAGE_TAG }}"
+          aws lambda wait function-updated \
+            --function-name "${{ vars.LAMBDA_FUNCTION_NAME }}"
+          echo "✓ SQS worker updated"
+
+      # - name: Update email worker
+      #   run: |
+      #     aws lambda update-function-code \
+      #       --function-name "${{ vars.EMAIL_LAMBDA_FUNCTION_NAME }}" \
+      #       --image-uri "${{ env.ECR_REGISTRY }}/flask-boilerplate/email-worker:${{ env.IMAGE_TAG }}"
+      #     aws lambda wait function-updated \
+      #       --function-name "${{ vars.EMAIL_LAMBDA_FUNCTION_NAME }}"

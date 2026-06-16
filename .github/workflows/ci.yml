@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install ruff
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Check lint rules
+        run: ruff check .
+
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Run tests
+        env:
+          SECRET_KEY: test-only-not-a-real-secret
+        run: pytest tests/app/unit tests/app/integration --cov=app --cov-report=term-missing
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Start CI stack
+        run: docker compose -f docker-compose.ci.yml up -d --wait
+        timeout-minutes: 5
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.ci.yml logs
+
+      - name: Run E2E tests
+        env:
+          E2E_BASE_URL: http://localhost/api/v1
+        run: pytest tests/app/e2e
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.ci.yml down -v

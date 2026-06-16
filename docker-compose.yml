@@ -1,0 +1,213 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:3
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,logs,sqs
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./localstack-init:/etc/localstack/init/ready.d
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: appdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build:
+      context: .
+      dockerfile: services/app/Dockerfile
+    command: sh -c "flask db migrate && flask db upgrade"
+    env_file:
+      - .env.local
+    environment:
+      FLASK_APP: app
+    volumes:
+      - ./services/app:/app
+      - ./services/app/migrations:/app/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
+  app:
+    build:
+      context: .
+      dockerfile: services/app/Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+      - "5678:5678"
+    volumes:
+      - ./services/app:/app
+    env_file:
+      - .env.local
+    environment:
+      FLASK_APP: app
+      FLASK_ENV: development
+      FLASK_DEBUG: "1"
+      DEBUG_METRICS: "1"
+      REDIS_URL: redis://redis:6379/0
+      AWS_SQS_ENDPOINT_URL: http://localstack:4566
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/events-queue
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./lambda
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/events-queue
+      AWS_SQS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  s3-console:
+    image: cloudlena/s3manager:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ENDPOINT=localstack:4566
+      - ACCESS_KEY_ID=test
+      - SECRET_ACCESS_KEY=test
+      - USE_SSL=false
+    depends_on:
+      localstack:
+        condition: service_healthy
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+
+  loki:
+    image: grafana/loki:latest
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - app
+      - cadvisor
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+
+volumes:
+  postgres_data:
+  localstack_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:

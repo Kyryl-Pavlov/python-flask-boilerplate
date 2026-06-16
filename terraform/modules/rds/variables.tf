@@ -1,0 +1,10 @@
+variable "app_name" { type = string }
+variable "environment" { type = string }
+variable "vpc_id" { type = string }
+variable "subnet_ids" { type = list(string) }
+variable "security_group_id" { type = string }
+variable "instance_class" { type = string }
+variable "deletion_protection" { type = bool }
+variable "backup_retention" { type = number }
+variable "multi_az" { type = bool }
+variable "skip_final_snapshot" { type = bool }

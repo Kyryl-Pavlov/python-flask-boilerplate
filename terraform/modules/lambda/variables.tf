@@ -1,0 +1,11 @@
+variable "app_name" { type = string }
+variable "environment" { type = string }
+variable "worker_image" { type = string }
+variable "role_arn" { type = string }
+variable "security_group_id" { type = string }
+variable "subnet_ids" { type = list(string) }
+variable "sqs_queue_arn" { type = string }
+variable "sqs_queue_url" { type = string }
+variable "database_url_secret_arn" { type = string }
+variable "redis_url" { type = string }
+variable "s3_bucket" { type = string }
