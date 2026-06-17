@@ -43,12 +43,21 @@ services:
     restart: on-failure
 
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     restart: unless-stopped
     ports:
       - "5000:5000"
+      - "5678:5678"
+    volumes:
+      - .:/app
     env_file:
       - .env.local
+    environment:
+      FLASK_APP: app
+      FLASK_ENV: development
+      FLASK_DEBUG: "1"
     depends_on:
       postgres:
         condition: service_healthy
