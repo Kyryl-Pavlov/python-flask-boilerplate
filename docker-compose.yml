@@ -1,4 +1,20 @@
 services:
+  localstack:
+    image: localstack/localstack:3
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./localstack-init:/etc/localstack/init/ready.d
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -38,18 +54,34 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
 
   pgadmin:
     image: dpage/pgadmin4
     restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+    env_file:
+      - .env.local
     ports:
       - "5050:80"
     depends_on:
       postgres:
         condition: service_healthy
 
+  s3-console:
+    image: cloudlena/s3manager:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ENDPOINT=localstack:4566
+      - ACCESS_KEY_ID=test
+      - SECRET_ACCESS_KEY=test
+      - USE_SSL=false
+    depends_on:
+      localstack:
+        condition: service_healthy
+
 volumes:
   postgres_data:
+  localstack_data:

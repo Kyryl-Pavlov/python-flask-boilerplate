@@ -1,12 +1,11 @@
 import strawberry
-from app.graphql_api.resolvers import HealthQueries, AuthMutations
+from strawberry.tools import merge_types
 
-@strawberry.type
-class Query(HealthQueries):
-    pass
+from app.graphql_api.resolvers.auth import AuthMutations
+from app.graphql_api.resolvers.health import HealthQueries
+from app.graphql_api.resolvers.media import MediaMutations, MediaQueries
 
-@strawberry.type
-class Mutation(AuthMutations):
-    pass
+Query = merge_types("Query", (HealthQueries, MediaQueries))
+Mutation = merge_types("Mutation", (AuthMutations, MediaMutations))
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
