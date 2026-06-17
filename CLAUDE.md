@@ -29,6 +29,13 @@ docker compose logs -f app
 bash migrate.sh
 ```
 
+**`start_infra.sh`** — starts only the infrastructure services (Postgres, LocalStack, migrations) in detached mode. Used when running the Flask app on the host for local debugging.
+
+```bash
+bash start_infra.sh
+# To stop: docker compose stop postgres localstack
+```
+
 **`launch_app_docker_image.sh`** — builds the production Docker image standalone (no compose, no infrastructure) and starts a single detached container on port 5000. Useful for smoke-testing the image in isolation. After startup it hits `/api/v1/health` to verify the server is up and prints the GraphQL playground URL.
 
 ```bash
@@ -38,13 +45,33 @@ bash launch_app_docker_image.sh
 
 > Note: this script starts only the app container with no database or LocalStack, so any endpoint that touches Postgres or S3 will fail. Use it only to verify the image builds and the process starts cleanly.
 
+## Debugging
+
+Two VSCode debug configurations are defined in `.vscode/launch.json`:
+
+### Option 1 — Attach to running Docker container
+
+The `app` service in `docker-compose.yml` uses `Dockerfile.dev`, which starts Flask under `debugpy` on port 5678. The debugger is always available while the stack is running.
+
+```bash
+docker compose up --build
+```
+
+Then launch **"Docker: Attach to Flask"** in VSCode. Source changes are picked up immediately via the volume mount (no rebuild needed).
+
+### Option 2 — Run Flask on the host
+
+Start only infrastructure, then launch **"Local: Flask Debug"** in VSCode (F5). The `preLaunchTask` runs `docker compose up -d postgres localstack migrate` automatically; `postDebugTask` stops them when the session ends.
+
+The launch config overrides `DATABASE_URL` and S3 endpoint vars to use `localhost` instead of Docker service hostnames. If your `.env.local` uses different Postgres credentials, update `DATABASE_URL` in `.vscode/launch.json` accordingly.
+
 ## Local Infrastructure
 
 The full stack runs via Docker Compose. All services share the default Docker network.
 
 | Service | Port | Purpose |
 |---|---|---|
-| `app` | 5000 | Flask app (gunicorn, 4 workers) |
+| `app` | 5000, 5678 | Flask app (dev server + debugpy on 5678) |
 | `postgres` | 5432 | Primary database |
 | `migrate` | — | One-shot container: runs `flask db upgrade` on startup |
 | `localstack` | 4566 | AWS S3 emulator |
