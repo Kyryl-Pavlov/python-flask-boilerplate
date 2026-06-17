@@ -1,8 +1,9 @@
 #!/bin/bash
+# Only launches App container
 set -e
 
 IMAGE_NAME="flask-boilerplate"
-PORT=8000
+PORT=5000
 
 echo "Building Docker image..."
 docker build -t $IMAGE_NAME .

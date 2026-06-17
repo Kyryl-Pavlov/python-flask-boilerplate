@@ -1,3 +1,5 @@
 from .user import User
+from .media import Media
 
-__all__ = ['User']
+
+__all__ = ['User','Media']
