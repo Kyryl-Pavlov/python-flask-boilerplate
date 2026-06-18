@@ -24,9 +24,9 @@ def register():
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        return rest_api_response(success=False, message="Registration failed", status_code=500)
+        return rest_api_response(success=False, message="Registration failed", status_code=500, exc=e)
 
     return rest_api_response(status_code=201)
 
@@ -49,8 +49,8 @@ def login():
             'access_token': create_access_token(identity=str(user.id)),
             'refresh_token': create_refresh_token(identity=str(user.id)),
         })
-    except Exception:
-        return rest_api_response(success=False, message="Login failed", status_code=500)
+    except Exception as e:
+        return rest_api_response(success=False, message="Login failed", status_code=500, exc=e)
 
 
 @auth_bp.route('/refresh', methods=['POST'])
@@ -60,5 +60,5 @@ def refresh():
         return rest_api_response(data={
             'access_token': create_access_token(identity=get_jwt_identity())
         })
-    except Exception:
-        return rest_api_response(success=False, message="Token refresh failed", status_code=500)
+    except Exception as e:
+        return rest_api_response(success=False, message="Token refresh failed", status_code=500, exc=e)
