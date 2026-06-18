@@ -16,6 +16,10 @@ class Config:
     AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL")  # None in real AWS, set to LocalStack URL in dev
     AWS_S3_PUBLIC_ENDPOINT_URL = os.getenv("AWS_S3_PUBLIC_ENDPOINT_URL")  # browser-accessible URL for presigned URLs
     PRESIGNED_URL_EXPIRY = int(os.getenv("PRESIGNED_URL_EXPIRY", 86400))
+    SENTRY_DSN = os.getenv("SENTRY_DSN")
+    CLOUDWATCH_LOG_GROUP = os.getenv("CLOUDWATCH_LOG_GROUP")
+    CLOUDWATCH_STREAM_NAME = os.getenv("CLOUDWATCH_STREAM_NAME", "app")
+    CLOUDWATCH_ENDPOINT_URL = os.getenv("CLOUDWATCH_ENDPOINT_URL")  # None in real AWS, set to LocalStack URL in dev
 
 class DevelopmentConfig(Config):
     DEBUG = True

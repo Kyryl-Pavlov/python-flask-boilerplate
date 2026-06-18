@@ -30,6 +30,8 @@ Provides a solid foundation for scalable RESTful and GraphQL APIs with clean fol
 - JWT authentication (access + refresh tokens)
 - PostgreSQL with Flask-Migrate (Alembic)
 - S3 media uploads (LocalStack for local dev, real AWS in production)
+- Structured logging with Sentry (error tracking) and CloudWatch (log aggregation)
+- Automatic sensitive data masking before any log is emitted
 - Docker Compose full-stack setup with all infrastructure included
 - VSCode debugger integration (Docker attach + host launch)
 
@@ -57,6 +59,7 @@ Every feature is exposed over **both REST and GraphQL**. Both share the same dat
 │   ├── extensions.py        # db, migrate, jwt singletons
 │   ├── models/              # SQLAlchemy models (User, Media)
 │   ├── services/            # External integrations (S3)
+│   ├── logging/             # AppLogger, SentryLogger, CloudWatchLogger, data_filter
 │   ├── api/
 │   │   └── v1/              # REST blueprints (auth, media, health)
 │   └── graphql_api/
@@ -465,6 +468,61 @@ VSCode automatically:
 | `AWS_S3_PUBLIC_ENDPOINT_URL` | `http://localhost:4566` | `http://localhost:4566` |
 
 If your `.env.local` uses different Postgres credentials, update `DATABASE_URL` in `.vscode/launch.json` to match.
+
+---
+
+## Logging
+
+The app uses a fanout logger (`AppLogger`) that dispatches every log call to one or more backends simultaneously. Backends are opt-in — only those with env vars set are activated.
+
+| Backend | Env var required | Purpose |
+|---|---|---|
+| Console | — | Always active; DEBUG in dev, WARNING in prod |
+| Sentry | `SENTRY_DSN` | Error tracking — `info`/`warn` become breadcrumbs, `error` becomes a captured event |
+| CloudWatch | `CLOUDWATCH_LOG_GROUP` | Structured JSON log aggregation |
+
+All log `data` payloads are automatically filtered by `mask_sensitive()` before reaching any backend — sensitive keys (`password`, `token`, `secret`, `authorization`, etc.) are replaced with `***`.
+
+### Sentry setup
+
+1. Create a project at [sentry.io](https://sentry.io) and copy the DSN.
+2. Add to `.env.local`:
+   ```env
+   SENTRY_DSN=https://<key>@o<org>.ingest.sentry.io/<project>
+   ```
+3. Restart the app — errors will appear in your Sentry Issues dashboard with breadcrumb trails.
+
+### CloudWatch setup (production)
+
+```env
+CLOUDWATCH_LOG_GROUP=/myapp/production
+CLOUDWATCH_STREAM_NAME=app
+AWS_ACCESS_KEY_ID=<real-key>
+AWS_SECRET_ACCESS_KEY=<real-secret>
+AWS_DEFAULT_REGION=us-east-1
+```
+
+### CloudWatch setup (local via LocalStack)
+
+```env
+CLOUDWATCH_LOG_GROUP=/myapp/dev
+CLOUDWATCH_STREAM_NAME=app
+CLOUDWATCH_ENDPOINT_URL=http://localstack:4566
+```
+
+Query logs locally with the AWS CLI:
+
+```bash
+# macOS / Linux
+aws --endpoint-url=http://localhost:4566 logs get-log-events \
+  --log-group-name /myapp/dev \
+  --log-stream-name app
+
+# Windows (Git Bash) — MSYS_NO_PATHCONV=1 prevents path conversion
+MSYS_NO_PATHCONV=1 aws --endpoint-url=http://localhost:4566 logs get-log-events \
+  --log-group-name /myapp/dev \
+  --log-stream-name app
+```
 
 ---
 

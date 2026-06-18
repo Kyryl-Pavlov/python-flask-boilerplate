@@ -21,9 +21,9 @@ class AuthMutations:
             user.set_password(password)
             db.session.add(user)
             db.session.commit()
-        except Exception:
+        except Exception as e:
             db.session.rollback()
-            return Response(success=False, message='Registration failed')
+            return Response(success=False, message='Registration failed', exc=e)
 
         return Response()
 
@@ -38,17 +38,17 @@ class AuthMutations:
                 access_token=create_access_token(identity=str(user.id)),
                 refresh_token=create_refresh_token(identity=str(user.id)),
             ))
-        except Exception:
-            return Response(success=False, message='Login failed')
+        except Exception as e:
+            return Response(success=False, message='Login failed', exc=e)
 
     @strawberry.mutation
     def refresh_token(self, info: strawberry.types.Info) -> Response[AuthPayload]:
         try:
             verify_jwt_in_request(refresh=True)
-        except Exception:
-            return Response(success=False, message="Invalid or expired refresh token")
+        except Exception as e:
+            return Response(success=False, message="Invalid or expired refresh token", exc=e)
 
         try:
             return Response(data=AuthPayload(access_token=create_access_token(identity=get_jwt_identity())))
-        except Exception:
-            return Response(success=False, message="Token refresh failed")
+        except Exception as e:
+            return Response(success=False, message="Token refresh failed", exc=e)

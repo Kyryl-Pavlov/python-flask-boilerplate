@@ -121,9 +121,47 @@ All models must be imported in `app/models/__init__.py` for Flask-Migrate to det
 
 `content_key` stores the S3 key (`media/<user_uuid>/<filename>`). Presigned URLs are generated on demand and never persisted.
 
+### Logging
+
+The app uses an Object Adapter pattern. All loggers implement `LoggerProtocol` (`app/utils/logger.py`) and are injected into `AppLogger`, which fans out calls to all of them.
+
+| Class | Location | Behaviour |
+|---|---|---|
+| `AppLogger` | `app/logging/logger.py` | Fanout adapter; single public method `log(message, level, data, exc)`. `Level` enum exposed as `AppLogger.Level.{INFO,WARN,ERROR}` |
+| `ConsoleLogger` | `app/logging/logger.py` | stdout via Python `logging`; DEBUG in dev, WARNING in prod |
+| `SentryLogger` | `app/logging/sentry_logger.py` | `info`/`warn` → Sentry breadcrumbs; `error` → `capture_message` with extras |
+| `CloudWatchLogger` | `app/logging/cloudwatch_logger.py` | Structured JSON events via `watchtower`; supports `endpoint_url` for LocalStack |
+
+`AppLogger` is created in `create_app()` and attached as `app.logger_adapter`. Sentry and CloudWatch are **opt-in** — only wired when their env vars are set. CloudWatch init failure is non-fatal (logs a warning, app continues with remaining loggers).
+
+**Automatic logging:** `rest_api_response()` and `Response.__post_init__` (GraphQL) call the logger automatically on every response — no manual calls needed in handlers. Log level is derived from `success` and `status_code`:
+- `success=True` → INFO
+- `success=False`, no `exc` → WARN
+- `success=False`, `exc` provided → ERROR with full stack trace
+
+**Manual logging:**
+```python
+from flask import current_app
+logger = current_app.logger_adapter
+logger.log("upload failed", level=logger.Level.ERROR, data={"key": s3_key}, exc=e)
+```
+
+**Data filtering:** `mask_sensitive()` in `app/logging/data_filter.py` recursively replaces values of sensitive keys (`password`, `token`, `secret`, `authorization`, etc.) with `***`. Applied automatically in `AppLogger.log()` before any logger sees the data. To add keys, extend `_SENSITIVE_KEYS` in `data_filter.py`.
+
+**Sentry notes:**
+- JWT auth failures (422) are handled by Flask-JWT-Extended before reaching our code — Sentry won't capture them unless you add a custom `@app.errorhandler(JWTExtendedException)`.
+- `info`/`warn` calls appear as breadcrumbs inside Sentry error events, not as standalone events. This is intentional — sending every log as an event burns Sentry quota.
+
+**CloudWatch / LocalStack notes:**
+- LocalStack must have `logs` in `SERVICES` (already set in `docker-compose.yml`).
+- On Windows with Git Bash, prefix every `aws logs` CLI command with `MSYS_NO_PATHCONV=1` to prevent Git Bash from converting `/myapp/dev` → `C:/Program Files/Git/myapp/dev`.
+- Query logs locally: `MSYS_NO_PATHCONV=1 aws --endpoint-url=http://localhost:4566 logs get-log-events --log-group-name /myapp/dev --log-stream-name app`
+
 ### Error Handling
 
 Each REST endpoint and GraphQL resolver wraps risky operations (DB commits, S3 calls, UUID parsing) in individual `try/except` blocks with specific messages and appropriate status codes. DB errors always call `db.session.rollback()` before returning.
+
+**S3 `_ensure_bucket`:** `head_bucket` raises `ClientError(404)`, not `client.exceptions.NoSuchBucket`. Always catch `botocore.exceptions.ClientError` and check `e.response["Error"]["Code"]` — catching the named exception variant silently falls through and skips bucket creation.
 
 ## Separation of Concerns
 
@@ -138,6 +176,7 @@ Each layer has a strict responsibility. Do not cross these boundaries:
 | **GraphQL types** | `app/graphql_api/types/` | Strawberry type definitions only — no resolver logic |
 | **Extensions** | `app/extensions.py` | Instantiate `db`, `migrate`, `jwt` as module-level singletons; initialize them in `create_app()` via `init_app()` to avoid circular imports |
 | **Config** | `app/config.py` | All configuration via `os.getenv()` at class definition time. Env vars are never read directly in handlers or services |
+| **Logging** | `app/logging/` | `AppLogger` + logger adapters (`ConsoleLogger`, `SentryLogger`, `CloudWatchLogger`), `mask_sensitive` data filter. No Flask request context assumptions except `current_app.logger_adapter` |
 
 ## Style Guide
 

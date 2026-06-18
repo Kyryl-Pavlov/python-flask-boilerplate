@@ -1,4 +1,5 @@
 import boto3
+from botocore.exceptions import ClientError
 from flask import current_app
 
 def _client(public: bool = False):
@@ -18,10 +19,9 @@ def _client(public: bool = False):
 def _ensure_bucket(client, bucket: str) -> None:  # client must be the internal (non-public) client
     try:
         client.head_bucket(Bucket=bucket)
-    except client.exceptions.NoSuchBucket:
-        client.create_bucket(Bucket=bucket)
-    except Exception:
-        pass
+    except ClientError as e:
+        if e.response["Error"]["Code"] in ("404", "NoSuchBucket"):
+            client.create_bucket(Bucket=bucket)
 
 
 def upload_file(file_obj, user_id: str, filename: str) -> str:
