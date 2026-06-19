@@ -1,5 +1,7 @@
 import os
-from flask import Flask
+import time
+from flask import Flask, g, request
+from prometheus_flask_exporter import PrometheusMetrics
 from .config import config
 from .extensions import db, migrate, jwt
 from . import models  # noqa: F401 — registers models with SQLAlchemy for migrations
@@ -8,6 +10,7 @@ from .graphql_api import create_graphql_view
 from .logging.logger import AppLogger, ConsoleLogger
 from .logging.sentry_logger import SentryLogger
 from .logging.cloudwatch_logger import CloudWatchLogger
+from .logging.loki_logger import LokiLogger
 
 REST_API_V = os.environ.get('REST_API_V', 'v1')
 api_module = importlib.import_module(f'.api.{REST_API_V}', package=__name__)
@@ -43,10 +46,34 @@ def create_app(config_name=None):
         except Exception as e:
             app.logger.warning(f"CloudWatch logger unavailable, skipping: {e}")
 
+    loki_url = app.config.get('LOKI_URL')
+    if loki_url:
+        loggers.append(LokiLogger(
+            url=loki_url,
+            labels={'app': 'flask-boilerplate', 'env': config_name},
+        ))
+
     app.logger_adapter = AppLogger(*loggers)
+
+    PrometheusMetrics(app, group_by='endpoint', default_labels={'app': 'flask-boilerplate'})
 
     app.register_blueprint(api_module.bp, url_prefix=f'/api/{REST_API_V}')
     app.add_url_rule('/graphql', view_func=create_graphql_view(), methods=['GET', 'POST'])
+
+    @app.before_request
+    def _record_start_time():
+        g.request_start = time.perf_counter()
+
+    @app.after_request
+    def _log_response_time(response):
+        if hasattr(g, 'request_start'):
+            duration_ms = round((time.perf_counter() - g.request_start) * 1000, 2)
+            app.logger_adapter.log(
+                "response",
+                level=AppLogger.Level.INFO,
+                data={"method": request.method, "path": request.path, "status": response.status_code, "duration_ms": duration_ms},
+            )
+        return response
 
     return app
 
