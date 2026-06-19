@@ -14,8 +14,11 @@ docker compose up --build app
 # Run DB migrations inside container
 docker compose run --rm migrate flask db upgrade
 
-# Generate a new migration after changing models
-docker compose run --rm migrate flask db migrate -m "description"
+# Migrations run automatically on every docker compose up --build.
+# The migrate service detects model changes, generates a file if needed, then applies it.
+# To run manually (e.g. outside Docker):
+docker compose exec app flask db migrate -m "description"
+docker compose exec app flask db upgrade
 
 # Tail app logs
 docker compose logs -f app
@@ -71,7 +74,8 @@ The full stack runs via Docker Compose. All services share the default Docker ne
 
 | Service | Port | Purpose |
 |---|---|---|
-| `app` | 5000, 5678 | Flask app (dev server + debugpy on 5678) |
+| `nginx` | 80 | Reverse proxy / load balancer — single entry point for all services |
+| `app` | 5000, 5678 | Flask app (dev server + debugpy on 5678) — also reachable directly on 5000 |
 | `postgres` | 5432 | Primary database |
 | `migrate` | — | One-shot container: runs `flask db upgrade` on startup |
 | `localstack` | 4566 | AWS S3 + CloudWatch Logs emulator |
@@ -83,7 +87,14 @@ The full stack runs via Docker Compose. All services share the default Docker ne
 | `cadvisor` | 8081 | Container resource metrics (CPU, mem, disk) — **non-functional on Docker Desktop for Windows**, included for production parity only |
 | `node-exporter` | 9100 | Host OS metrics (CPU, memory, disk I/O, network, load average) via `/proc` and `/sys` |
 
-**Startup order:** `postgres` healthy → `localstack` healthy → `migrate` completes → `app` starts.
+**Startup order:** `postgres` healthy → `localstack` healthy → `migrate` completes → `app` starts → `nginx` starts.
+
+**Adding a new microservice behind Nginx:**
+1. Add the service to `docker-compose.yml` (no ports needed — it stays internal).
+2. Add an upstream block and a `location` block to `nginx/nginx.conf`.
+3. Restart: `docker compose up --build nginx`.
+
+Other services reach the Flask API internally via `http://app:5000` (direct) or `http://nginx/api/v1/` (through the proxy). External clients always hit port 80.
 
 **S3 bucket init:** `localstack-init/create-bucket.sh` runs via LocalStack's `/etc/localstack/init/ready.d` hook, creating the `media-bucket`. The service also auto-creates the bucket on first upload via `_ensure_bucket()`.
 
@@ -234,9 +245,11 @@ Each layer has a strict responsibility. Do not cross these boundaries:
 | Layer | Location | Responsibility |
 |---|---|---|
 | **Models** | `app/models/` | SQLAlchemy schema only — no business logic, no imports from API or service layers |
-| **Services** | `app/services/` | External integrations (S3, future: email, payments). No Flask request context assumptions except `current_app.config` |
+| **Services** | `app/services/` | External integrations (S3, SQS, future: email, payments). No Flask request context assumptions except `current_app.config` |
 | **REST handlers** | `app/api/v1/` | Parse request, validate input, call services/models, return `rest_api_response()`. No raw `jsonify()` calls outside utils |
+| **REST utils** | `app/api/utils/utils.py` | Shared REST helpers (`rest_api_response`). All reusable REST helper functions live here — never inline them in handlers |
 | **GraphQL resolvers** | `app/graphql_api/resolvers/` | Mirror REST handlers but return `Response[T]` typed objects. No direct HTTP response logic |
+| **GraphQL utils** | `app/graphql_api/utils.py` | Shared GraphQL helpers (e.g. model-to-type converters). All reusable GraphQL helper functions live here — never inline them in resolvers |
 | **GraphQL types** | `app/graphql_api/types/` | Strawberry type definitions only — no resolver logic |
 | **Extensions** | `app/extensions.py` | Instantiate `db`, `migrate`, `jwt` as module-level singletons; initialize them in `create_app()` via `init_app()` to avoid circular imports |
 | **Config** | `app/config.py` | All configuration via `os.getenv()` at class definition time. Env vars are never read directly in handlers or services |
@@ -276,6 +289,7 @@ Tool config lives in `pyproject.toml` (`[tool.ruff]`). The hook script is `scrip
 ## Style Guide
 
 **Naming:**
+- Do not use leading underscores for function or variable names (`process_record`, not `_process_record`). Python's underscore-private convention is not used in this codebase.
 - S3 object paths are called `content_key` (never `content_url`) — they are keys, not URLs. Presigned URLs are transient and never stored.
 - GraphQL type fields use snake_case in Python; Strawberry auto-converts to camelCase in the schema (`media_id` → `mediaId`). The Postman collection uses camelCase field names for GraphQL responses.
 - REST response fields use snake_case throughout (`access_token`, `refresh_token`, `media_id`).

@@ -1,10 +1,21 @@
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   localstack:
     image: localstack/localstack:3
     ports:
       - "4566:4566"
     environment:
-      - SERVICES=s3,logs
+      - SERVICES=s3,logs,sqs
       - DEFAULT_REGION=us-east-1
     volumes:
       - localstack_data:/var/lib/localstack
@@ -34,13 +45,25 @@ services:
 
   migrate:
     build: .
-    command: flask db upgrade
+    command: sh -c "flask db migrate && flask db upgrade"
     env_file:
       - .env.local
+    volumes:
+      - .:/app
     depends_on:
       postgres:
         condition: service_healthy
     restart: on-failure
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
 
   app:
     build:
@@ -59,6 +82,30 @@ services:
       FLASK_ENV: development
       FLASK_DEBUG: "1"
       DEBUG_METRICS: "1"
+      REDIS_URL: redis://redis:6379/0
+      AWS_SQS_ENDPOINT_URL: http://localstack:4566
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/events-queue
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./lambda
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/events-queue
+      AWS_SQS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
     depends_on:
       postgres:
         condition: service_healthy

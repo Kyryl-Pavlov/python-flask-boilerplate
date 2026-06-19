@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
   <title>Python Flask Boilerplate</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -238,6 +239,42 @@
     footer a { color: var(--muted); }
     footer a:hover { color: var(--text); }
 
+    /* ── ARCHITECTURE ── */
+    .arch-section {
+      background: linear-gradient(135deg, var(--features-bg) 0%, var(--services-bg) 100%);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 5rem 2rem;
+      transition: background .3s, border-color .3s;
+    }
+    .arch-inner { max-width: 1060px; margin: 0 auto; }
+    .arch-scroll {
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      margin-top: 2.5rem; border: 1px solid var(--border); border-radius: var(--radius);
+      transition: border-color .3s;
+    }
+    .arch-scroll::-webkit-scrollbar { height: 4px; }
+    .arch-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    #archSvg {
+      width: 100%; min-width: 640px; height: auto; display: block;
+      background: var(--surface); transition: background .3s;
+    }
+    @media (max-width: 700px) { .arch-section { display: none; } }
+    .arch-panel {
+      margin-top: 1rem; padding: 1rem 1.4rem;
+      min-height: 58px; overflow: hidden;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      font-size: .85rem; color: var(--muted); line-height: 1.75;
+      transition: height .65s ease, background .3s, border-color .3s;
+    }
+    .arch-legend {
+      margin-top: .9rem; display: flex; flex-wrap: wrap; gap: .4rem 1.25rem;
+    }
+    .arch-legend span {
+      display: inline-flex; align-items: center; gap: .35rem;
+      font-size: .78rem; color: var(--muted);
+    }
+    .arch-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; opacity: .8; }
+
     @media (max-width: 600px) {
       nav .links { display: none; }
       .hero { padding: 3.5rem 1.5rem 3rem; }
@@ -272,7 +309,7 @@
     <img src="./avatar.jpg" alt="Kyryl Pavlov" />
     Built by <strong>Kyryl Pavlov</strong> · Full-Stack Engineer
   </a>
-  <p>A clean foundation for scalable REST and GraphQL APIs — JWT auth, Postgres, S3 uploads, structured logging, Prometheus metrics, and a full observability stack, all wired up from day one.</p>
+  <p>A clean foundation for scalable REST and GraphQL APIs — JWT auth, Postgres, S3 uploads, async event processing via SQS + Lambda, Redis caching, Nginx reverse proxy, structured logging, Prometheus metrics, and a full observability stack, all wired up from day one.</p>
   <div class="cta">
     <a class="btn btn-primary" href="https://github.com/Kyryl-Pavlov/python-flask-boilerplate">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -290,14 +327,29 @@
 <span class="cmd">git clone https://github.com/Kyryl-Pavlov/python-flask-boilerplate</span>
 <span class="cmd">cd python-flask-boilerplate</span>
 
-<span class="comment"># 2. Copy environment config</span>
-<span class="cmd">cp .env.local.example .env.local</span>
+<span class="comment"># 2. Create .env.local and set your environment variables</span>
+<span class="comment">#    See <a href="https://github.com/Kyryl-Pavlov/python-flask-boilerplate#environment-setup" target="_blank" rel="noopener">README → Environment Setup</a> for the full variable list</span>
+<span class="cmd">touch .env.local</span>
 
 <span class="comment"># 3. Start the full stack</span>
 <span class="cmd">docker compose up --build</span></pre>
   </div>
 </div>
 </div>
+
+<!-- ARCHITECTURE -->
+<section class="arch-section" id="architecture">
+  <div class="arch-inner">
+    <div class="section-label">Architecture</div>
+    <h2 class="section-title">Service communication map</h2>
+    <p class="section-desc">Hover a node to highlight its connections and see how data flows through the stack.</p>
+    <div class="arch-scroll">
+      <svg id="archSvg" viewBox="0 0 880 618" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="arch-panel" id="archPanel">Hover a node to see its connections.</div>
+    <div class="arch-legend" id="archLegend"></div>
+  </div>
+</section>
 
 <!-- FEATURES -->
 <section class="features" id="features">
@@ -356,6 +408,21 @@
         <h3>Pre-commit hooks</h3>
         <p>Ruff format + lint on every commit. Autofixable violations are fixed and staged automatically — the commit only aborts for issues that need manual attention.</p>
       </div>
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <h3>Nginx reverse proxy</h3>
+        <p>Single entry point on port 80 with built-in DDoS protection: per-IP rate limiting (strict on auth endpoints), connection capping, Slowloris mitigation, and buffer limits. Add new microservices with two config blocks.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <h3>Async event processing</h3>
+        <p>Flask publishes events to SQS. A Lambda function (locally: a worker container) consumes them and writes to Postgres. Idempotent via <code>ON CONFLICT DO NOTHING</code> — safe for at-least-once delivery.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🗂️</div>
+        <h3>Redis caching</h3>
+        <p>Opt-in per endpoint via <code>CacheService</code>. The app degrades gracefully when Redis is unavailable — <code>current_app.cache</code> is <code>None</code> and cache calls are skipped without errors.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -374,6 +441,10 @@
     <div class="stack-item"><span class="layer">Migrations</span><span class="name">Alembic / Flask-Migrate</span></div>
     <div class="stack-item"><span class="layer">Auth</span><span class="name">Flask-JWT-Extended</span></div>
     <div class="stack-item"><span class="layer">Storage</span><span class="name">AWS S3 / LocalStack</span></div>
+    <div class="stack-item"><span class="layer">Queue</span><span class="name">AWS SQS / LocalStack</span></div>
+    <div class="stack-item"><span class="layer">Serverless</span><span class="name">AWS Lambda (worker)</span></div>
+    <div class="stack-item"><span class="layer">Cache</span><span class="name">Redis</span></div>
+    <div class="stack-item"><span class="layer">Proxy / LB</span><span class="name">Nginx</span></div>
     <div class="stack-item"><span class="layer">Metrics</span><span class="name">Prometheus + Grafana</span></div>
     <div class="stack-item"><span class="layer">Logs</span><span class="name">Loki + Grafana</span></div>
     <div class="stack-item"><span class="layer">Error tracking</span><span class="name">Sentry</span></div>
@@ -386,17 +457,20 @@
 <!-- SERVICES -->
 <section class="services" id="services">
   <div class="services-inner">
-    <div class="section-label">Local Stack</div>
-    <h2 class="section-title">Full infrastructure in one command</h2>
-    <p style="color:var(--muted); margin-top:.5rem; max-width:540px"><code>docker compose up --build</code> starts everything below. No manual service installs required.</p>
+    <div class="section-label">Local Development Stack</div>
+    <h2 class="section-title">Full dev infrastructure in one command</h2>
+    <p style="color:var(--muted); margin-top:.5rem; max-width:540px"><code>docker compose up --build</code> starts everything below — development environment only. No manual service installs required.</p>
     <table>
       <thead>
         <tr><th>Service</th><th>Port</th><th>Purpose</th></tr>
       </thead>
       <tbody>
-        <tr><td class="service-name">app</td><td class="port">5000 · 5678</td><td>Flask API + debugpy</td></tr>
+        <tr><td class="service-name">nginx</td><td class="port">80</td><td>Reverse proxy + load balancer — single entry point with DDoS protection</td></tr>
+        <tr><td class="service-name">app</td><td class="port">5000 · 5678</td><td>Flask API + debugpy (direct access for local dev)</td></tr>
+        <tr><td class="service-name">worker</td><td class="port">—</td><td>Lambda handler in polling mode — consumes SQS, writes events to Postgres</td></tr>
         <tr><td class="service-name">postgres</td><td class="port">5432</td><td>Primary database</td></tr>
-        <tr><td class="service-name">localstack</td><td class="port">4566</td><td>AWS S3 + CloudWatch emulator</td></tr>
+        <tr><td class="service-name">redis</td><td class="port">6379</td><td>Cache layer</td></tr>
+        <tr><td class="service-name">localstack</td><td class="port">4566</td><td>AWS S3 + SQS</td></tr>
         <tr><td class="service-name">pgadmin</td><td class="port">5050</td><td>Postgres GUI</td></tr>
         <tr><td class="service-name">s3-console</td><td class="port">8080</td><td>S3 bucket browser</td></tr>
         <tr><td class="service-name">loki</td><td class="port">3100</td><td>Log aggregation</td></tr>
@@ -420,7 +494,7 @@
       </div>
       <div class="about-title">Full-Stack Web Developer · Valencia, Spain</div>
       <p class="about-bio">
-        Software Engineer with 5 years of commercial experience building e-commerce projects.
+        Software Engineer with 5+ years of commercial experience building e-commerce projects.
         Strong background in server-side technologies (Node.js, TypeScript, Python) and cloud infrastructure (AWS),
         combined with modern front-end tools like React and Next.js.
         Proven ability to design scalable APIs, integrate security protocols, and collaborate with cross-functional teams.
@@ -583,6 +657,231 @@
   init();
   draw();
   window.addEventListener('resize', init);
+})();
+
+// ── ARCHITECTURE DIAGRAM ──
+(function () {
+  const svg = document.getElementById('archSvg');
+  if (!svg) return;
+
+  const NW = 112, NH = 34, R = 6, HW = NW / 2, HH = NH / 2;
+
+  const GROUPS = {
+    external: { stroke: '#8a817a', fill: 'rgba(138,129,122,.12)', label: 'Client' },
+    proxy:    { stroke: '#e07575', fill: 'rgba(224,117,117,.15)', label: 'Proxy' },
+    app:      { stroke: '#6aacac', fill: 'rgba(106,172,172,.15)', label: 'Application' },
+    data:     { stroke: '#b08080', fill: 'rgba(176,128,128,.15)', label: 'Data' },
+    queue:    { stroke: '#6090b8', fill: 'rgba(96,144,184,.15)',  label: 'Messaging' },
+    obs:      { stroke: '#5a9e6a', fill: 'rgba(90,158,106,.13)',  label: 'Observability' },
+    tool:     { stroke: '#999',    fill: 'rgba(160,160,160,.1)',  label: 'Dev Tools' },
+  };
+
+  const NODES = [
+    { id: 'internet',   label: 'Client',        sub: 'Browser / API',     group: 'external', x: 440, y: 44  },
+    { id: 'nginx',      label: 'Nginx',          sub: ':80',               group: 'proxy',    x: 440, y: 132 },
+    { id: 'flask',      label: 'Flask App',      sub: ':5000',             group: 'app',      x: 245, y: 248 },
+    { id: 'worker',     label: 'Worker',         sub: 'Lambda / local',    group: 'app',      x: 648, y: 248 },
+    { id: 'postgres',   label: 'PostgreSQL',     sub: ':5432',             group: 'data',     x: 90,  y: 378 },
+    { id: 'redis',      label: 'Redis',          sub: ':6379',             group: 'data',     x: 283, y: 378 },
+    { id: 'localstack', label: 'LocalStack',     sub: 'S3 · SQS · :4566', group: 'queue',    x: 568, y: 378 },
+    { id: 'pgadmin',    label: 'pgAdmin',        sub: ':5050',             group: 'tool',     x: 90,  y: 480 },
+    { id: 's3con',      label: 'S3 Console',     sub: ':8080',             group: 'tool',     x: 754, y: 480 },
+    { id: 'prometheus', label: 'Prometheus',     sub: ':9090',             group: 'obs',      x: 104, y: 562 },
+    { id: 'loki',       label: 'Loki',           sub: ':3100',             group: 'obs',      x: 294, y: 562 },
+    { id: 'grafana',    label: 'Grafana',        sub: ':3000',             group: 'obs',      x: 487, y: 562 },
+    { id: 'nodeexp',    label: 'Node Exporter',  sub: ':9100',             group: 'obs',      x: 744, y: 562 },
+  ];
+
+  const EDGES = [
+    { from: 'internet',   to: 'nginx',      label: 'HTTP traffic' },
+    { from: 'nginx',      to: 'flask',      label: 'Reverse proxy — rate-limited, DDoS-protected' },
+    { from: 'flask',      to: 'postgres',   label: 'SQLAlchemy ORM — reads & writes' },
+    { from: 'flask',      to: 'redis',      label: 'Cache get / set / delete' },
+    { from: 'flask',      to: 'localstack', label: 'S3 file uploads · SQS publish events' },
+    { from: 'flask',      to: 'loki',       label: 'Structured log push (HTTP)' },
+    { from: 'worker',     to: 'localstack', label: 'SQS long-poll (5 s window)' },
+    { from: 'worker',     to: 'postgres',   label: 'INSERT events — idempotent via sqs_message_id' },
+    { from: 'prometheus', to: 'flask',      label: 'Scrapes /metrics every 15 s', dashed: true },
+    { from: 'prometheus', to: 'nodeexp',    label: 'Scrapes :9100/metrics every 15 s', dashed: true },
+    { from: 'grafana',    to: 'prometheus', label: 'PromQL queries' },
+    { from: 'grafana',    to: 'loki',       label: 'LogQL queries' },
+    { from: 'pgadmin',    to: 'postgres',   label: 'Postgres admin GUI' },
+    { from: 's3con',      to: 'localstack', label: 'S3 bucket browser' },
+  ];
+
+  const nodeMap = Object.fromEntries(NODES.map(n => [n.id, n]));
+  const nodeEdges = {};
+  NODES.forEach(n => nodeEdges[n.id] = []);
+  EDGES.forEach((e, i) => { nodeEdges[e.from].push(i); nodeEdges[e.to].push(i); });
+
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs) {
+    const e = document.createElementNS(NS, tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => e.setAttribute(k, v));
+    return e;
+  }
+
+  // Arrow marker — context-stroke inherits the path's stroke colour
+  const defs = el('defs', {});
+  const marker = el('marker', { id: 'arch-arr', markerWidth: 7, markerHeight: 7, refX: 6, refY: 3.5, orient: 'auto' });
+  const arrowPoly = el('polygon', { points: '0 0, 7 3.5, 0 7' });
+  arrowPoly.style.fill = 'context-stroke';
+  marker.appendChild(arrowPoly);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+
+  // Connection point on node border towards another node
+  function connPt(n, other) {
+    const dx = other.x - n.x, dy = other.y - n.y;
+    return Math.abs(dy) >= Math.abs(dx)
+      ? [n.x, n.y + (dy > 0 ? HH : -HH)]
+      : [n.x + (dx > 0 ? HW : -HW), n.y];
+  }
+
+  // Cubic bezier path between two nodes
+  function edgePath(fromId, toId) {
+    const a = nodeMap[fromId], b = nodeMap[toId];
+    const [sx, sy] = connPt(a, b), [ex, ey] = connPt(b, a);
+    const dx = ex - sx, dy = ey - sy;
+    const c = Math.min(52, Math.sqrt(dx * dx + dy * dy) * 0.35);
+    let c1x = sx, c1y = sy, c2x = ex, c2y = ey;
+    if (Math.abs(dy) >= Math.abs(dx)) {
+      c1y = sy + (dy > 0 ? c : -c); c2y = ey + (dy > 0 ? -c : c);
+    } else {
+      c1x = sx + (dx > 0 ? c : -c); c2x = ex + (dx > 0 ? -c : c);
+    }
+    return `M${sx},${sy} C${c1x},${c1y} ${c2x},${c2y} ${ex},${ey}`;
+  }
+
+  function dimColor() {
+    return document.documentElement.dataset.theme === 'dark'
+      ? 'rgba(90,114,128,.45)' : 'rgba(138,129,122,.38)';
+  }
+
+  // Render edges
+  const edgeEls = EDGES.map(edge => {
+    const path = el('path', {
+      d: edgePath(edge.from, edge.to),
+      'stroke-width': 1.5,
+      fill: 'none',
+      'stroke-dasharray': edge.dashed ? '5 3' : 'none',
+      'marker-end': 'url(#arch-arr)',
+    });
+    path.style.stroke = dimColor();
+    path.style.opacity = '0.6';
+    path.style.transition = 'opacity .15s, stroke .15s, stroke-width .15s';
+    svg.appendChild(path);
+    return path;
+  });
+
+  // Render nodes
+  const nodeEls = {};
+  NODES.forEach(node => {
+    const col = GROUPS[node.group];
+    const g = el('g', { transform: `translate(${node.x - HW},${node.y - HH})` });
+    g.style.transition = 'opacity .15s';
+    g.style.cursor = 'default';
+
+    const rect = el('rect', { width: NW, height: NH, rx: R, 'stroke-width': 1.5 });
+    rect.style.fill = col.fill;
+    rect.style.stroke = col.stroke;
+    g.appendChild(rect);
+
+    const lbl = el('text', { x: NW / 2, y: 13.5, 'text-anchor': 'middle', 'font-size': 10.5, 'font-weight': 700 });
+    lbl.style.fill = 'var(--text)'; lbl.style.pointerEvents = 'none';
+    lbl.textContent = node.label;
+    g.appendChild(lbl);
+
+    const sub = el('text', { x: NW / 2, y: 26.5, 'text-anchor': 'middle', 'font-size': 8 });
+    sub.style.fill = 'var(--muted)'; sub.style.fontFamily = 'var(--mono)'; sub.style.pointerEvents = 'none';
+    sub.textContent = node.sub;
+    g.appendChild(sub);
+
+    svg.appendChild(g);
+    nodeEls[node.id] = { g, col };
+
+    g.addEventListener('mouseenter', () => hover(node.id));
+    g.addEventListener('mouseleave', restore);
+  });
+
+  svg.addEventListener('mouseleave', restore);
+
+  const panel = document.getElementById('archPanel');
+
+  function setPanel(html) {
+    const from = panel.offsetHeight;
+    panel.innerHTML = html;
+
+    // Measure the natural target height without any explicit constraint
+    panel.style.transition = 'none';
+    panel.style.height = 'auto';
+    const to = panel.offsetHeight;
+
+    // Snap back to 'from' (still no transition — all synchronous, no paint yet)
+    panel.style.height = from + 'px';
+
+    // Re-enable transition in the next frame and animate to target
+    requestAnimationFrame(() => {
+      panel.style.transition = '';
+      panel.style.height = to + 'px';
+    });
+  }
+
+  function hover(id) {
+    const activeIdxs = new Set(nodeEdges[id]);
+    const connected = new Set([id]);
+    activeIdxs.forEach(i => { connected.add(EDGES[i].from); connected.add(EDGES[i].to); });
+
+    Object.entries(nodeEls).forEach(([nid, { g }]) => {
+      g.style.opacity = connected.has(nid) ? '1' : '0.12';
+    });
+
+    const accent = nodeEls[id].col.stroke;
+    edgeEls.forEach((path, i) => {
+      if (activeIdxs.has(i)) {
+        path.style.stroke = accent;
+        path.setAttribute('stroke-width', 2.2);
+        path.style.opacity = '1';
+      } else {
+        path.style.stroke = dimColor();
+        path.setAttribute('stroke-width', 1.5);
+        path.style.opacity = '0.05';
+      }
+    });
+
+    const node = nodeMap[id];
+    const lines = EDGES
+      .map((e, i) => activeIdxs.has(i) ? e : null).filter(Boolean)
+      .map(e => {
+        const other = nodeMap[e.from === id ? e.to : e.from];
+        const arrow = e.from === id ? '→' : '←';
+        return `<span style="font-size:.82rem">${arrow} <b style="color:var(--text)">${other.label}</b>&ensp;${e.label}</span>`;
+      });
+    setPanel(`<b style="color:var(--text)">${node.label}</b><br>${lines.join('<br>') || '<span style="opacity:.6">No connections</span>'}`);
+  }
+
+  function restore() {
+    Object.values(nodeEls).forEach(({ g }) => g.style.opacity = '1');
+    edgeEls.forEach(path => {
+      path.style.stroke = dimColor();
+      path.setAttribute('stroke-width', 1.5);
+      path.style.opacity = '0.6';
+    });
+    setPanel('Hover a node to see its connections.');
+  }
+
+  // Legend
+  const legend = document.getElementById('archLegend');
+  if (legend) {
+    Object.values(GROUPS).forEach(g => {
+      const s = document.createElement('span');
+      const i = document.createElement('i');
+      i.style.cssText = `background:${g.stroke};border-radius:2px;width:10px;height:10px;display:inline-block;opacity:.8;flex-shrink:0`;
+      s.appendChild(i);
+      s.appendChild(document.createTextNode(g.label));
+      legend.appendChild(s);
+    });
+  }
 })();
 
 // ── THEME TOGGLE ──
