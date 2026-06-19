@@ -74,9 +74,14 @@ The full stack runs via Docker Compose. All services share the default Docker ne
 | `app` | 5000, 5678 | Flask app (dev server + debugpy on 5678) |
 | `postgres` | 5432 | Primary database |
 | `migrate` | — | One-shot container: runs `flask db upgrade` on startup |
-| `localstack` | 4566 | AWS S3 emulator |
+| `localstack` | 4566 | AWS S3 + CloudWatch Logs emulator |
 | `pgadmin` | 5050 | Postgres GUI |
 | `s3-console` | 8080 | S3 bucket GUI (cloudlena/s3manager) |
+| `loki` | 3100 | Log aggregation — receives structured JSON from `LokiLogger` |
+| `prometheus` | 9090 | Metrics database — scrapes `/metrics` from `app` every 15 s |
+| `grafana` | 3000 | Dashboards — queries Prometheus (metrics) and Loki (logs) |
+| `cadvisor` | 8081 | Container resource metrics (CPU, mem, disk) — **non-functional on Docker Desktop for Windows**, included for production parity only |
+| `node-exporter` | 9100 | Host OS metrics (CPU, memory, disk I/O, network, load average) via `/proc` and `/sys` |
 
 **Startup order:** `postgres` healthy → `localstack` healthy → `migrate` completes → `app` starts.
 
@@ -131,8 +136,11 @@ The app uses an Object Adapter pattern. All loggers implement `LoggerProtocol` (
 | `ConsoleLogger` | `app/logging/logger.py` | stdout via Python `logging`; DEBUG in dev, WARNING in prod |
 | `SentryLogger` | `app/logging/sentry_logger.py` | `info`/`warn` → Sentry breadcrumbs; `error` → `capture_message` with extras |
 | `CloudWatchLogger` | `app/logging/cloudwatch_logger.py` | Structured JSON events via `watchtower`; supports `endpoint_url` for LocalStack |
+| `LokiLogger` | `app/logging/loki_logger.py` | POSTs structured JSON to Loki's `/loki/api/v1/push`; uses stdlib `urllib` only (no extra dependency); failures are silently swallowed |
 
-`AppLogger` is created in `create_app()` and attached as `app.logger_adapter`. Sentry and CloudWatch are **opt-in** — only wired when their env vars are set. CloudWatch init failure is non-fatal (logs a warning, app continues with remaining loggers).
+`AppLogger` is created in `create_app()` and attached as `app.logger_adapter`. Sentry, CloudWatch, and Loki are **opt-in** — only wired when their env vars are set. CloudWatch init failure is non-fatal (logs a warning, app continues with remaining loggers). Loki push failures are silently swallowed.
+
+**Loki labels:** every event is tagged with `{app: "flask-boilerplate", env: <config_name>, level: <info|warning|error>}`. Query in Grafana Explore with `{app="flask-boilerplate"}` or `{level="error"}`.
 
 **Automatic logging:** `rest_api_response()` and `Response.__post_init__` (GraphQL) call the logger automatically on every response — no manual calls needed in handlers. Log level is derived from `success` and `status_code`:
 - `success=True` → INFO
@@ -157,6 +165,62 @@ logger.log("upload failed", level=logger.Level.ERROR, data={"key": s3_key}, exc=
 - On Windows with Git Bash, prefix every `aws logs` CLI command with `MSYS_NO_PATHCONV=1` to prevent Git Bash from converting `/myapp/dev` → `C:/Program Files/Git/myapp/dev`.
 - Query logs locally: `MSYS_NO_PATHCONV=1 aws --endpoint-url=http://localhost:4566 logs get-log-events --log-group-name /myapp/dev --log-stream-name app`
 
+### Observability Stack
+
+The app ships a **collect → store → visualise** pipeline:
+
+```
+Flask /metrics    ──scrape──►  Prometheus  ──PromQL──►  Grafana
+AppLogger         ──push───►   Loki        ──LogQL───►  Grafana
+node-exporter     ──scrape──►  Prometheus
+cAdvisor          ──scrape──►  Prometheus  (non-functional on Docker Desktop)
+```
+
+**Grafana provisioning (auto-wired on startup):**
+- `grafana/provisioning/datasources/datasources.yml` — registers Prometheus (uid: `prometheus`) and Loki (uid: `loki`) automatically. No manual UI setup needed.
+- `grafana/provisioning/dashboards/dashboards.yml` — loads all JSON files from `grafana/dashboards/` on startup.
+- `grafana/dashboards/flask-app.json` — Flask App dashboard: request rate, error rate, p95/p99 latency stats, request rate by status/endpoint, latency by endpoint, error logs, all logs.
+- `grafana/dashboards/host-metrics.json` — Host Metrics dashboard: CPU usage (total/user/system/iowait), memory (used/buffers/cached/free), network I/O, disk I/O, load average (1m/5m/15m), open file descriptors.
+- Default credentials: `admin` / `admin` (set via `GF_SECURITY_ADMIN_PASSWORD` in `docker-compose.yml`).
+
+**Prometheus metrics (`prometheus-flask-exporter`):**
+- Registers automatically via `PrometheusMetrics(app, ...)` in `create_app()`.
+- Exposes `/metrics` in Prometheus text format.
+- `DEBUG_METRICS=1` must be set in the app's environment when running with Flask's reloader (`FLASK_DEBUG=1`). Without it the exporter disables itself to avoid double-counting across the reloader's parent/child processes. Already set in `docker-compose.yml`.
+- `prometheus.yml` scrapes `app:5000/metrics`, `cadvisor:8080/metrics`, and `node-exporter:9100/metrics` every 15 s.
+
+**Node Exporter (host OS metrics):**
+- Mounts `/proc`, `/sys`, and `/` read-only from the host and exposes kernel-level metrics: `node_cpu_seconds_total`, `node_memory_MemAvailable_bytes`, `node_filesystem_avail_bytes`, `node_disk_read_bytes_total`, `node_network_receive_bytes_total`, `node_load1/5/15`.
+- Works correctly on Docker Desktop for Windows because it reads from `/proc` and `/sys`, which Docker Desktop maps properly into the WSL2 VM (unlike cAdvisor which needs the overlayfs layer database).
+- **Scope:** entire host (or WSL2 VM on Windows) — not per-container. Use cAdvisor for per-container breakdowns.
+
+**cAdvisor (container resource metrics):**
+- `gcr.io/cadvisor/cadvisor:v0.47.2` — pinned because v0.55+ requires the containerd socket at `/run/containerd/containerd.sock`, which Docker Desktop for Windows does not expose at that path. v0.47.2 uses the Docker HTTP API but still cannot read `/var/lib/docker/image/overlayfs/layerdb/mounts/` on Docker Desktop (path mismatch in the WSL2 VM). Effectively non-functional on Windows Docker Desktop — included for production parity. On a real Linux host it works without changes.
+- **Scope:** per-container CPU, memory, network, disk — complements Node Exporter which only shows host totals.
+
+**Node Exporter vs cAdvisor:**
+- Node Exporter answers "how loaded is the host?" — total CPU %, memory pressure, disk space, network throughput.
+- cAdvisor answers "which container is responsible?" — per-container breakdown of the same resources.
+- Both are needed for full visibility; Node Exporter works locally, cAdvisor does not on Docker Desktop.
+
+**Production on AWS Fargate — neither tool runs:**
+Fargate is serverless — there is no accessible host OS, Docker socket, or cgroup filesystem. Replace the entire local observability stack with AWS-managed equivalents:
+
+| Local | AWS Fargate |
+|---|---|
+| Node Exporter + cAdvisor | **CloudWatch Container Insights** — enabled with one ECS cluster setting; collects per-task CPU, memory, network natively from the Fargate hypervisor |
+| Prometheus scraping `/metrics` | **ADOT sidecar** (AWS Distro for OpenTelemetry) — runs as a second container in the same Fargate task, scrapes `localhost:5000/metrics`, ships to Amazon Managed Prometheus (AMP) |
+| Prometheus (storage) | **Amazon Managed Prometheus (AMP)** |
+| Loki | **CloudWatch Logs** — already wired via `CloudWatchLogger`; no changes needed |
+| Grafana | **Amazon Managed Grafana (AMG)** — connects to AMP and CloudWatch as data sources |
+
+The only app-side requirement for the production setup is the `/metrics` endpoint — ADOT picks it up without any code changes.
+
+**Adding a new logger backend:**
+1. Create a class in `app/logging/` implementing `LoggerProtocol` (`info`, `warning`, `error` methods).
+2. Instantiate it conditionally in `create_app()` and append to `loggers`.
+3. Add the required env var to `app/config.py` base `Config` class.
+
 ### Error Handling
 
 Each REST endpoint and GraphQL resolver wraps risky operations (DB commits, S3 calls, UUID parsing) in individual `try/except` blocks with specific messages and appropriate status codes. DB errors always call `db.session.rollback()` before returning.
@@ -176,7 +240,7 @@ Each layer has a strict responsibility. Do not cross these boundaries:
 | **GraphQL types** | `app/graphql_api/types/` | Strawberry type definitions only — no resolver logic |
 | **Extensions** | `app/extensions.py` | Instantiate `db`, `migrate`, `jwt` as module-level singletons; initialize them in `create_app()` via `init_app()` to avoid circular imports |
 | **Config** | `app/config.py` | All configuration via `os.getenv()` at class definition time. Env vars are never read directly in handlers or services |
-| **Logging** | `app/logging/` | `AppLogger` + logger adapters (`ConsoleLogger`, `SentryLogger`, `CloudWatchLogger`), `mask_sensitive` data filter. No Flask request context assumptions except `current_app.logger_adapter` |
+| **Logging** | `app/logging/` | `AppLogger` + logger adapters (`ConsoleLogger`, `SentryLogger`, `CloudWatchLogger`, `LokiLogger`), `mask_sensitive` data filter. No Flask request context assumptions except `current_app.logger_adapter` |
 
 ## Style Guide
 

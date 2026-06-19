@@ -18,6 +18,13 @@ Provides a solid foundation for scalable RESTful and GraphQL APIs with clean fol
 - [Example Flow](#example-flow)
 - [GraphQL API](#graphql-api)
 - [Database Migrations](#database-migrations)
+- [Logging](#logging)
+- [Observability](#observability)
+  - [Grafana dashboards](#grafana-dashboards-pre-built-auto-provisioned)
+  - [App metrics](#app-metrics-metrics)
+  - [Host metrics](#host-metrics-node-exporter)
+  - [Logs](#logs-loki)
+  - [Production on AWS Fargate](#production-on-aws-fargate)
 - [Debugging](#debugging)
 - [Production Image](#production-image)
 
@@ -30,8 +37,11 @@ Provides a solid foundation for scalable RESTful and GraphQL APIs with clean fol
 - JWT authentication (access + refresh tokens)
 - PostgreSQL with Flask-Migrate (Alembic)
 - S3 media uploads (LocalStack for local dev, real AWS in production)
-- Structured logging with Sentry (error tracking) and CloudWatch (log aggregation)
+- Structured logging with Sentry (error tracking), CloudWatch (log aggregation), and Loki (local log UI)
 - Automatic sensitive data masking before any log is emitted
+- Prometheus metrics endpoint (`/metrics`) with per-endpoint request duration histograms
+- Host OS metrics via Node Exporter (CPU, memory, disk I/O, network, load average)
+- Pre-built Grafana dashboards for app metrics and host metrics, auto-provisioned on startup
 - Docker Compose full-stack setup with all infrastructure included
 - VSCode debugger integration (Docker attach + host launch)
 
@@ -168,9 +178,14 @@ This builds the dev image and starts all services. On first run, database migrat
 |---|---|---|
 | Flask API | http://localhost:5000 | REST + GraphQL |
 | GraphQL playground | http://localhost:5000/graphql | Interactive query UI |
+| Prometheus metrics | http://localhost:5000/metrics | Raw app metrics |
 | pgAdmin | http://localhost:5050 | Postgres GUI |
 | S3 console | http://localhost:8080 | S3 bucket browser |
 | LocalStack | http://localhost:4566 | AWS S3 emulator |
+| Loki | http://localhost:3100 | Log aggregation |
+| Prometheus | http://localhost:9090 | Metrics database + query UI |
+| Grafana | http://localhost:3000 | Dashboards (metrics + logs) |
+| Node Exporter | http://localhost:9100/metrics | Host OS raw metrics |
 
 To tail app logs:
 
@@ -479,7 +494,8 @@ The app uses a fanout logger (`AppLogger`) that dispatches every log call to one
 |---|---|---|
 | Console | — | Always active; DEBUG in dev, WARNING in prod |
 | Sentry | `SENTRY_DSN` | Error tracking — `info`/`warn` become breadcrumbs, `error` becomes a captured event |
-| CloudWatch | `CLOUDWATCH_LOG_GROUP` | Structured JSON log aggregation |
+| CloudWatch | `CLOUDWATCH_LOG_GROUP` | Structured JSON log aggregation (production) |
+| Loki | `LOKI_URL` | Structured log aggregation, queryable in Grafana (local dev) |
 
 All log `data` payloads are automatically filtered by `mask_sensitive()` before reaching any backend — sensitive keys (`password`, `token`, `secret`, `authorization`, etc.) are replaced with `***`.
 
@@ -523,6 +539,115 @@ MSYS_NO_PATHCONV=1 aws --endpoint-url=http://localhost:4566 logs get-log-events 
   --log-group-name /myapp/dev \
   --log-stream-name app
 ```
+
+### Loki setup (local dev)
+
+Loki runs as a Docker Compose service and requires no extra configuration — `LOKI_URL=http://loki:3100` is already set in `.env.local`. Logs are pushed automatically on every request. To query them, use Grafana (see [Observability](#observability)).
+
+---
+
+## Observability
+
+The stack ships with a full observability pipeline: **Prometheus** for metrics, **Loki** for logs, **Node Exporter** for host metrics, and **Grafana** to visualise everything.
+
+### Grafana dashboards (pre-built, auto-provisioned)
+
+Both Prometheus and Loki data sources and both dashboards are wired automatically on startup — no manual configuration needed. Open Grafana at `http://localhost:3000` (login: `admin` / `admin`) and go to **Dashboards**.
+
+**Flask App** dashboard:
+
+| Panel | What it shows |
+|---|---|
+| Request Rate | Requests/sec across all endpoints |
+| Error Rate | % of non-2xx responses (green → yellow → red) |
+| p95 / p99 Latency | Response time percentiles in ms |
+| Request Rate by Status | Time series, 4xx coloured yellow, 5xx red |
+| Response Time Percentiles | p50 / p95 / p99 over time |
+| Request Rate by Endpoint | Per-endpoint throughput with mean/max table |
+| Latency by Endpoint (p95) | Per-endpoint p95 with mean/max table |
+| Error Logs | Live Loki feed, errors only |
+| All Logs | Live Loki feed, all levels |
+
+**Host Metrics** dashboard:
+
+| Panel | What it shows |
+|---|---|
+| CPU Usage (stat) | Total CPU % (green → yellow → red) |
+| Memory Usage (stat) | % of RAM in use |
+| Disk Usage (stat) | `/` filesystem % used |
+| System Load 1m (stat) | `node_load1` |
+| CPU (timeseries) | total / user / system / iowait breakdown |
+| Memory (timeseries) | used / buffers / cached / free in bytes |
+| Network I/O | bytes/sec received vs transmitted |
+| Disk I/O | bytes/sec read vs written |
+| Load Average | 1m / 5m / 15m over time |
+| Open File Descriptors | allocated vs system maximum |
+
+### App metrics (`/metrics`)
+
+The Flask app exposes a Prometheus-format metrics endpoint at `http://localhost:5000/metrics`. Prometheus scrapes it every 15 seconds. Query directly at `http://localhost:9090`.
+
+Useful PromQL queries:
+
+```promql
+# Request rate per endpoint (last 5 min)
+rate(flask_http_request_total[5m])
+
+# 95th percentile response time
+histogram_quantile(0.95, rate(flask_http_request_duration_seconds_bucket[5m]))
+
+# Error rate (non-2xx responses)
+rate(flask_http_request_total{status!~"2.."}[5m])
+```
+
+> `prometheus-flask-exporter` disables itself when Flask's reloader is active. `DEBUG_METRICS=1` (already set in `docker-compose.yml`) re-enables it for local dev.
+
+### Host metrics (Node Exporter)
+
+Node Exporter exposes OS-level metrics from `/proc` and `/sys` at `http://localhost:9100/metrics`. Prometheus scrapes it every 15 seconds. Useful PromQL queries:
+
+```promql
+# CPU usage %
+100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+# Memory usage %
+(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+
+# Disk space used %
+(1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100
+
+# Network throughput
+rate(node_network_receive_bytes_total{device!="lo"}[5m])
+```
+
+> On Windows with Docker Desktop, Node Exporter reports WSL2 VM metrics (not Windows host metrics). This is expected — Docker containers run inside WSL2.
+
+### Logs (Loki)
+
+Every log emitted through `AppLogger` is pushed to Loki with labels `app`, `env`, and `level`. Query in Grafana Explore with LogQL:
+
+```logql
+{app="flask-boilerplate"}                    # all logs
+{app="flask-boilerplate", level="error"}     # errors only
+{app="flask-boilerplate"} |= "upload"        # text search
+```
+
+### cAdvisor (container metrics)
+
+cAdvisor (`http://localhost:8081`) provides per-container CPU, memory, and network metrics. It works correctly on Linux hosts. **On Docker Desktop for Windows it does not report container metrics** due to a path mismatch in the WSL2 layer database — this is a known limitation. Use Node Exporter for host-level metrics locally and rely on CloudWatch Container Insights in production.
+
+### Production on AWS Fargate
+
+Neither Node Exporter nor cAdvisor can run on Fargate (no access to host OS). AWS-managed equivalents replace them with zero configuration changes to the app:
+
+| Local | AWS production |
+|---|---|
+| Node Exporter + cAdvisor | **CloudWatch Container Insights** — enable on the ECS cluster, collects per-task CPU/mem/network from the Fargate hypervisor |
+| Prometheus + `/metrics` | **ADOT sidecar** (AWS Distro for OpenTelemetry) in the Fargate task → **Amazon Managed Prometheus** |
+| Loki | **CloudWatch Logs** — already wired via `CloudWatchLogger`, no code changes needed |
+| Grafana | **Amazon Managed Grafana** — connects to AMP + CloudWatch as data sources |
+
+The only app-side requirement is the `/metrics` endpoint — ADOT picks it up automatically.
 
 ---
 

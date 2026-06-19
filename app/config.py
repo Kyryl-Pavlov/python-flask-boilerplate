@@ -20,6 +20,7 @@ class Config:
     CLOUDWATCH_LOG_GROUP = os.getenv("CLOUDWATCH_LOG_GROUP")
     CLOUDWATCH_STREAM_NAME = os.getenv("CLOUDWATCH_STREAM_NAME", "app")
     CLOUDWATCH_ENDPOINT_URL = os.getenv("CLOUDWATCH_ENDPOINT_URL")  # None in real AWS, set to LocalStack URL in dev
+    LOKI_URL = os.getenv("LOKI_URL")
 
 class DevelopmentConfig(Config):
     DEBUG = True

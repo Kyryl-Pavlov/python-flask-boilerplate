@@ -58,6 +58,7 @@ services:
       FLASK_APP: app
       FLASK_ENV: development
       FLASK_DEBUG: "1"
+      DEBUG_METRICS: "1"
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,6 +92,70 @@ services:
       localstack:
         condition: service_healthy
 
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+
+  loki:
+    image: grafana/loki:latest
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - app
+      - cadvisor
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+
 volumes:
   postgres_data:
   localstack_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
