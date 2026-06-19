@@ -1,8 +1,12 @@
+<div align="center">
+  <img src="docs/favicon.svg" width="80" height="80" alt="Python Flask Boilerplate"/>
+</div>
+
 # python-flask-boilerplate
 
 A clean, production-ready Flask Web API boilerplate to start your Python backend projects fast.
 
-Provides a solid foundation for scalable RESTful and GraphQL APIs with clean folder architecture, JWT authentication, database migrations, and AWS S3 media uploads out of the box.
+Provides a solid foundation for scalable RESTful and GraphQL APIs with clean folder architecture, JWT authentication, database migrations, AWS S3 media uploads, async event processing via SQS + Lambda, Redis caching, and an Nginx reverse proxy with DDoS protection out of the box.
 
 ---
 
@@ -18,6 +22,9 @@ Provides a solid foundation for scalable RESTful and GraphQL APIs with clean fol
 - [Example Flow](#example-flow)
 - [GraphQL API](#graphql-api)
 - [Database Migrations](#database-migrations)
+- [Reverse Proxy & Load Balancer](#reverse-proxy--load-balancer)
+- [Async Event Processing](#async-event-processing)
+- [Redis Cache](#redis-cache)
 - [Logging](#logging)
 - [Observability](#observability)
   - [Grafana dashboards](#grafana-dashboards-pre-built-auto-provisioned)
@@ -36,8 +43,11 @@ Provides a solid foundation for scalable RESTful and GraphQL APIs with clean fol
 - REST API (Flask blueprints, versioned at `/api/v1/`)
 - GraphQL API (Strawberry, at `/graphql`)
 - JWT authentication (access + refresh tokens)
-- PostgreSQL with Flask-Migrate (Alembic)
+- PostgreSQL with Flask-Migrate (Alembic) — migrations auto-generated and applied on every `docker compose up --build`
 - S3 media uploads (LocalStack for local dev, real AWS in production)
+- Async event processing via **SQS + Lambda** — Flask publishes events to SQS; a Lambda function (locally: a worker container) consumes them and writes to Postgres
+- **Nginx reverse proxy** as the single entry point on port 80, with DDoS protection: rate limiting, connection capping, Slowloris mitigation, and oversized-request blocking
+- **Redis caching** — opt-in per endpoint via `CacheService`; disabled gracefully when `REDIS_URL` is not set
 - Structured logging with Sentry (error tracking), CloudWatch (log aggregation), and Loki (local log UI)
 - Automatic sensitive data masking before any log is emitted
 - Prometheus metrics endpoint (`/metrics`) with per-endpoint request duration histograms
@@ -69,16 +79,23 @@ Every feature is exposed over **both REST and GraphQL**. Both share the same dat
 │   ├── __init__.py          # App factory (create_app)
 │   ├── config.py            # Dev / Prod / Test config classes
 │   ├── extensions.py        # db, migrate, jwt singletons
-│   ├── models/              # SQLAlchemy models (User, Media)
-│   ├── services/            # External integrations (S3)
+│   ├── models/              # SQLAlchemy models (User, Media, Event)
+│   ├── services/            # External integrations (S3, SQS)
 │   ├── logging/             # AppLogger, SentryLogger, CloudWatchLogger, data_filter
 │   ├── api/
-│   │   └── v1/              # REST blueprints (auth, media, health)
+│   │   └── v1/              # REST blueprints (auth, media, events, cache, health)
 │   └── graphql_api/
 │       ├── resolvers/       # GraphQL mutations and queries
 │       ├── types/           # Strawberry type definitions
+│       ├── utils.py         # Shared GraphQL helpers (model → type converters)
 │       └── schema.py        # Merged GraphQL schema
-├── migrations/              # Alembic migration files
+├── lambda/
+│   ├── handler.py           # Lambda entry point + local polling worker
+│   ├── Dockerfile           # Worker container image
+│   └── requirements.txt     # Lambda dependencies (boto3, sqlalchemy, psycopg2)
+├── nginx/
+│   └── nginx.conf           # Reverse proxy config with DDoS protection
+├── migrations/              # Alembic migration files (auto-generated on up --build)
 ├── Dockerfile               # Production image (gunicorn)
 ├── Dockerfile.dev           # Dev image (Flask dev server + debugpy)
 ├── docker-compose.yml       # Full local stack
@@ -138,33 +155,80 @@ python --version   # Python 3.12.x
 
 ## Environment Setup
 
-Copy the example env file and fill in the values:
+Create a `.env.local` file in the project root. This file is never committed — it is the single source of truth for all local configuration.
 
-```bash
-cp .env.local.example .env.local
-```
+All values below work out of the box with Docker Compose. Before deploying to production, replace `SECRET_KEY` and `JWT_SECRET_KEY` with strong random strings.
 
-> `.env.local` is never committed. It is the single source of truth for all local configuration.
-
-Default values that work out of the box with Docker Compose:
+**Core**
 
 ```env
+SECRET_KEY=dev-secret-key
+JWT_SECRET_KEY=19c7a47a7b4330769667c83436293f125474076d58399761e61a4a16da3ee206
 DATABASE_URL=postgresql://user:password@postgres:5432/appdb
-SECRET_KEY=change-me
-JWT_SECRET_KEY=change-me
+```
 
+> Generate a production `JWT_SECRET_KEY` with `openssl rand -hex 32`.
+
+**Flask**
+
+```env
+FLASK_ENV=development
+FLASK_APP=wsgi.py
+REST_API_V=v1
+REST_API_VN=1.0.0
+GRAPHQL_API_VN=1.0.0
+```
+
+**AWS / S3 — LocalStack defaults (no real AWS needed locally)**
+
+```env
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 AWS_DEFAULT_REGION=us-east-1
 AWS_S3_BUCKET=media-bucket
 AWS_S3_ENDPOINT_URL=http://localstack:4566
 AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:4566
+PRESIGNED_URL_EXPIRY=86400
+```
 
+**SQS — LocalStack defaults**
+
+```env
+AWS_SQS_ENDPOINT_URL=http://localstack:4566
+SQS_QUEUE_URL=http://localstack:4566/000000000000/events-queue
+```
+
+> `AWS_SQS_ENDPOINT_URL` and `SQS_QUEUE_URL` are injected by Docker Compose automatically for the `app` and `worker` containers. Add them to `.env.local` only when running Flask directly on the host (debug Option 2), replacing `localstack` with `localhost`.
+
+**Redis**
+
+```env
+REDIS_URL=redis://redis:6379/0
+```
+
+> Injected by Docker Compose for the `app` container. For host debugging use `redis://localhost:6379/0`.
+
+**Observability — wired to local Docker services**
+
+```env
+CLOUDWATCH_LOG_GROUP=/myapp/dev
+CLOUDWATCH_STREAM_NAME=app
+CLOUDWATCH_ENDPOINT_URL=http://localstack:4566
+LOKI_URL=http://loki:3100
+```
+
+**Admin tools**
+
+```env
 PGADMIN_DEFAULT_EMAIL=admin@admin.com
 PGADMIN_DEFAULT_PASSWORD=admin
 ```
 
-> Change `SECRET_KEY` and `JWT_SECRET_KEY` to random strings before deploying anywhere. Everything else can stay as-is for local development.
+**Error tracking — optional**
+
+```env
+SENTRY_DSN=https://<key>@o<org>.ingest.sentry.io/<project>
+```
 
 ---
 
@@ -178,12 +242,12 @@ This builds the dev image and starts all services. On first run, database migrat
 
 | Service | URL | Purpose |
 |---|---|---|
-| Flask API | http://localhost:5000 | REST + GraphQL |
-| GraphQL playground | http://localhost:5000/graphql | Interactive query UI |
-| Prometheus metrics | http://localhost:5000/metrics | Raw app metrics |
+| **Nginx** (entry point) | http://localhost | Reverse proxy — all API traffic goes here |
+| Flask API (direct) | http://localhost:5000 | Bypass Nginx for debugging |
+| GraphQL playground | http://localhost/graphql | Interactive query UI |
 | pgAdmin | http://localhost:5050 | Postgres GUI |
 | S3 console | http://localhost:8080 | S3 bucket browser |
-| LocalStack | http://localhost:4566 | AWS S3 emulator |
+| LocalStack | http://localhost:4566 | AWS S3 + SQS emulator |
 | Loki | http://localhost:3100 | Log aggregation |
 | Prometheus | http://localhost:9090 | Metrics database + query UI |
 | Grafana | http://localhost:3000 | Dashboards (metrics + logs) |
@@ -238,6 +302,21 @@ All REST responses follow the same envelope shape:
 | POST | `/api/v1/media/upload` | Access token | Upload a file to S3, returns presigned URL |
 | GET | `/api/v1/media/<media_id>/url` | Access token | Get a fresh presigned URL for an existing file |
 
+### Events
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/events` | Access token | Publish an event to SQS; returns `message_id` (202) |
+| GET | `/api/v1/events` | Access token | List the last 100 processed events from the database |
+
+### Cache (dev / diagnostics)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/cache/ping` | None | Check Redis connectivity |
+| GET | `/api/v1/cache/test` | None | Read a cached value (cache miss computes and stores it) |
+| DELETE | `/api/v1/cache/test` | None | Invalidate the cached value |
+
 ---
 
 ## Example Flow
@@ -247,7 +326,7 @@ This walks through the complete user journey from registration to file retrieval
 ### 1. Register
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/auth/register \
+curl -X POST http://localhost/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email": "alice@example.com", "password": "secret123"}'
 ```
@@ -259,7 +338,7 @@ curl -X POST http://localhost:5000/api/v1/auth/register \
 ### 2. Login
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/auth/login \
+curl -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "alice@example.com", "password": "secret123"}'
 ```
@@ -280,7 +359,7 @@ Save the `access_token` — you need it for all subsequent requests. It expires 
 ### 3. Upload a file
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/media/upload \
+curl -X POST http://localhost/api/v1/media/upload \
   -H "Authorization: Bearer <access_token>" \
   -F "file=@/path/to/photo.jpg"
 ```
@@ -304,7 +383,7 @@ The `url` in the response is a presigned link you can open directly in a browser
 Access tokens and presigned URLs both expire. Use the stored `media_id` to generate a new URL at any time:
 
 ```bash
-curl http://localhost:5000/api/v1/media/<media_id>/url \
+curl http://localhost/api/v1/media/<media_id>/url \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -323,7 +402,7 @@ curl http://localhost:5000/api/v1/media/<media_id>/url \
 When your access token expires (after 15 minutes), use the refresh token to get a new one without logging in again:
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/auth/refresh \
+curl -X POST http://localhost/api/v1/auth/refresh \
   -H "Authorization: Bearer <refresh_token>"
 ```
 
@@ -341,7 +420,7 @@ curl -X POST http://localhost:5000/api/v1/auth/refresh \
 
 ## GraphQL API
 
-The GraphQL playground is available at http://localhost:5000/graphql. The same flow works over GraphQL using mutations and queries.
+The GraphQL playground is available at http://localhost/graphql. The same flow works over GraphQL using mutations and queries.
 
 > For authenticated requests in the playground, add an HTTP header: `{"Authorization": "Bearer <access_token>"}`
 
@@ -406,23 +485,127 @@ query {
 
 ## Database Migrations
 
-Whenever you add or change a SQLAlchemy model, generate a migration:
+Migrations are **automatic** — every `docker compose up --build` runs `flask db migrate` (detects model changes, generates a file if needed) followed by `flask db upgrade`. You never need to run migration commands manually for new models.
+
+To run manually (e.g. to apply a handwritten migration outside of the full stack):
 
 ```bash
-# Generate the migration file
-docker compose run --rm migrate flask db migrate -m "adds session table"
-
-# Apply it
-docker compose run --rm migrate flask db upgrade
+docker compose exec app flask db migrate -m "description"
+docker compose exec app flask db upgrade
 ```
 
-Or use the interactive helper script (requires Flask in your local venv):
-
-```bash
-bash migrate.sh
-```
+> Use `exec app` (not `run --rm migrate`) so the generated file is written to the host via the volume mount.
 
 > New models must be imported in `app/models/__init__.py` or Flask-Migrate won't detect them.
+
+---
+
+## Reverse Proxy & Load Balancer
+
+All external traffic enters through **Nginx on port 80** (`nginx/nginx.conf`). The Flask app is not exposed publicly — Nginx proxies to it internally at `app:5000`.
+
+**DDoS protections applied:**
+
+| Protection | Mechanism | Config |
+|---|---|---|
+| Rate limiting (general) | `limit_req` | 300 req/min per IP, burst 50 |
+| Rate limiting (auth) | `limit_req` | 20 req/min per IP, burst 5 — slows brute-force |
+| Connection cap | `limit_conn` | 20 concurrent connections per IP |
+| Slowloris mitigation | Timeouts | Body/header/send: 10 s, keepalive: 30 s |
+| Oversized requests | Buffer limits | Header: 1 k, body buffer: 16 k |
+| Blocked methods | `if` guard | Only GET, POST, PUT, PATCH, DELETE, OPTIONS allowed |
+| Metrics lockdown | `allow`/`deny` | `/metrics` reachable only from Docker internal network |
+
+**Adding a new microservice:**
+
+1. Add the service to `docker-compose.yml` — no port exposure needed (stays internal).
+2. Add an upstream and a location block to `nginx/nginx.conf`:
+
+```nginx
+upstream payments {
+    server payments:3000;
+}
+
+location /payments/ {
+    limit_req        zone=api burst=50 nodelay;
+    limit_req_status 429;
+    proxy_pass       http://payments/;
+}
+```
+
+3. Reload Nginx without downtime:
+
+```bash
+docker compose up -d payments
+docker compose exec nginx nginx -s reload
+```
+
+Service-to-service calls within the Docker network use service names directly (`http://payments:3000`) — routing through Nginx for internal traffic adds unnecessary latency.
+
+---
+
+## Async Event Processing
+
+The stack includes an end-to-end SQS → Lambda pipeline:
+
+```
+Flask app  →  SQS queue  →  Lambda (locally: worker container)  →  PostgreSQL
+```
+
+**Publishing an event** (REST):
+
+```bash
+curl -X POST http://localhost/api/v1/events \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"type": "user.action", "payload": {"detail": "example"}}'
+```
+
+```json
+{"success": true, "message": "", "data": {"message_id": "<sqs-id>"}}
+```
+
+**Reading processed events:**
+
+```bash
+curl http://localhost/api/v1/events \
+  -H "Authorization: Bearer <access_token>"
+```
+
+**How it works locally:**
+
+The `worker` container (`lambda/handler.py`) polls SQS using long-polling (`WaitTimeSeconds=5`). When a message arrives it inserts a row into the `events` table using `ON CONFLICT DO NOTHING` on `sqs_message_id` — safe for at-least-once delivery. Messages are deleted from the queue only after a successful DB write.
+
+**Deploying to AWS:**
+
+Deploy `lambda/handler.py` as a Lambda function with an SQS trigger. The same `handler(event, context)` entry point works unchanged. On AWS, `DATABASE_URL` points to RDS, `SQS_QUEUE_URL` to the real queue, and `AWS_SQS_ENDPOINT_URL` is unset (boto3 routes to real AWS automatically).
+
+> For high-concurrency Lambda deployments, add **RDS Proxy** in front of your database to multiplex connections. `NullPool` is already configured in `handler.py` so each invocation closes its connection immediately.
+
+---
+
+## Redis Cache
+
+Redis is included in the stack and exposed to the app via `REDIS_URL`. The `CacheService` wraps it with a simple `get` / `set` / `delete` / `ttl` / `ping` interface.
+
+**`/api/v1/cache/ping`** — returns `{"redis": "ok"}` or `{"redis": "unavailable"}`.
+
+**`/api/v1/cache/test`** — demonstrates a read-through cache: first call computes a value and stores it for 60 seconds, subsequent calls return it from Redis with the remaining TTL.
+
+**Using the cache in a handler:**
+
+```python
+from flask import current_app
+
+cache = current_app.cache
+if cache:
+    cached = cache.get("my:key")
+    if cached is None:
+        result = expensive_computation()
+        cache.set("my:key", result, ttl=300)
+```
+
+If `REDIS_URL` is not set, `current_app.cache` is `None` and all cache calls are skipped — the app degrades gracefully without errors.
 
 ---
 

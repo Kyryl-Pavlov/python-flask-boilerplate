@@ -4,24 +4,51 @@ from typing import Any
 
 _MASK = "***"
 
-_SENSITIVE_KEYS: frozenset[str] = frozenset({
-    "password", "passwd", "pass",
-    "secret", "secret_key",
-    "token", "access_token", "refresh_token", "id_token",
-    "auth_token", "bearer_token", "bearer",
-    "jwt", "session_token", "session",
-    "oauth_token", "client_secret", "client_token",
-    "authorization", "auth",
-    "api_key", "apikey",
-    "private_key", "signing_key",
-    "credential", "credentials",
-    "credit_card", "card_number", "cvv", "cvc", "ssn", "pin",
-})
+_SENSITIVE_KEYS: frozenset[str] = frozenset(
+    {
+        "password",
+        "passwd",
+        "pass",
+        "secret",
+        "secret_key",
+        "token",
+        "access_token",
+        "refresh_token",
+        "id_token",
+        "auth_token",
+        "bearer_token",
+        "bearer",
+        "jwt",
+        "session_token",
+        "session",
+        "oauth_token",
+        "client_secret",
+        "client_token",
+        "authorization",
+        "auth",
+        "api_key",
+        "apikey",
+        "private_key",
+        "signing_key",
+        "credential",
+        "credentials",
+        "credit_card",
+        "card_number",
+        "cvv",
+        "cvc",
+        "ssn",
+        "pin",
+    }
+)
 
 
-def mask_sensitive(data: dict[str, Any] | None) -> dict[str, Any] | None:
+def mask_sensitive(
+    data: dict[str, Any] | list[Any] | None,
+) -> dict[str, Any] | list[Any] | None:
     if data is None:
         return None
+    if isinstance(data, list):
+        return _mask_list(data)
     return _mask_dict(data)
 
 
@@ -40,7 +67,4 @@ def _mask_dict(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _mask_list(items: list[Any]) -> list[Any]:
-    return [
-        _mask_dict(item) if isinstance(item, dict) else item
-        for item in items
-    ]
+    return [_mask_dict(item) if isinstance(item, dict) else item for item in items]
