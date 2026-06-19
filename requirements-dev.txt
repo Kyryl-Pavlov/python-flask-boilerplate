@@ -1,3 +1,5 @@
 -r requirements.txt
 watchdog>=4.0.0
 debugpy>=1.8.0
+pre-commit>=4.0.0
+ruff>=0.11.0
