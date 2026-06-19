@@ -25,6 +25,7 @@ Provides a solid foundation for scalable RESTful and GraphQL APIs with clean fol
   - [Host metrics](#host-metrics-node-exporter)
   - [Logs](#logs-loki)
   - [Production on AWS Fargate](#production-on-aws-fargate)
+- [Code Quality](#code-quality)
 - [Debugging](#debugging)
 - [Production Image](#production-image)
 
@@ -44,6 +45,7 @@ Provides a solid foundation for scalable RESTful and GraphQL APIs with clean fol
 - Pre-built Grafana dashboards for app metrics and host metrics, auto-provisioned on startup
 - Docker Compose full-stack setup with all infrastructure included
 - VSCode debugger integration (Docker attach + host launch)
+- Pre-commit hooks for automatic code formatting and linting (Ruff)
 
 ---
 
@@ -421,6 +423,43 @@ bash migrate.sh
 ```
 
 > New models must be imported in `app/models/__init__.py` or Flask-Migrate won't detect them.
+
+---
+
+## Code Quality
+
+Pre-commit hooks run automatically on every `git commit` and keep the codebase consistently formatted. Set them up once after creating your dev virtualenv:
+
+```bash
+python -m venv .venv
+
+# Windows:
+.venv\Scripts\Activate.ps1
+# macOS/Linux:
+source .venv/bin/activate
+
+pip install -r requirements-dev.txt
+pre-commit install
+```
+
+From that point on, every commit automatically:
+
+1. Removes trailing whitespace and fixes missing end-of-file newlines (non-Python files)
+2. Validates YAML and TOML syntax
+3. Fails if unresolved merge conflict markers are found
+4. Fails if `breakpoint()` or `pdb.set_trace()` calls are left in Python files
+5. Reformats Python code with **Ruff** (`ruff format`)
+6. Applies all autofixable lint violations with **Ruff** (`ruff check --fix`)
+7. Re-stages any fixed files so they are included in the same commit — no second commit needed
+8. Aborts the commit only if unfixable violations remain, printing exactly what needs to be fixed manually
+
+To run the hooks across the entire codebase without committing:
+
+```bash
+pre-commit run --all-files
+```
+
+Ruff configuration (line length, selected rules, import ordering) lives in `pyproject.toml`.
 
 ---
 

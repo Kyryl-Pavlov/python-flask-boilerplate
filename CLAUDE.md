@@ -242,6 +242,37 @@ Each layer has a strict responsibility. Do not cross these boundaries:
 | **Config** | `app/config.py` | All configuration via `os.getenv()` at class definition time. Env vars are never read directly in handlers or services |
 | **Logging** | `app/logging/` | `AppLogger` + logger adapters (`ConsoleLogger`, `SentryLogger`, `CloudWatchLogger`, `LokiLogger`), `mask_sensitive` data filter. No Flask request context assumptions except `current_app.logger_adapter` |
 
+## Code Quality
+
+Pre-commit hooks enforce formatting and linting on every `git commit`. Install once after setting up the dev virtualenv:
+
+```bash
+pip install -r requirements-dev.txt
+pre-commit install
+```
+
+| Hook | Files | Behaviour |
+|---|---|---|
+| `trailing-whitespace` | non-`.py` | Removes trailing spaces |
+| `end-of-file-fixer` | non-`.py` | Ensures files end with a newline |
+| `check-yaml` | `.yml`/`.yaml` | Validates YAML syntax |
+| `check-toml` | `.toml` | Validates TOML syntax |
+| `check-merge-conflict` | all | Fails on unresolved `<<<<<<<` markers |
+| `debug-statements` | `.py` | Fails on `breakpoint()` / `pdb.set_trace()` |
+| `ruff` (autofix + format) | `.py` | Runs `ruff format` + `ruff check --fix`, re-stages fixed files, then checks for unfixable issues |
+
+**Commit behaviour:**
+- Autofixable issues → fixes are applied and staged into the commit automatically (single commit, no second pass needed)
+- Unfixable issues → commit aborts with the specific error printed
+
+Run all hooks on the entire codebase without committing:
+
+```bash
+pre-commit run --all-files
+```
+
+Tool config lives in `pyproject.toml` (`[tool.ruff]`). The hook script is `scripts/ruff_hook.py`.
+
 ## Style Guide
 
 **Naming:**
