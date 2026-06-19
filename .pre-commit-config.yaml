@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.py$
+      - id: end-of-file-fixer
+        exclude: \.py$
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: debug-statements
+
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (autofix + format)
+        language: python
+        entry: python scripts/ruff_hook.py
+        types: [python]
+        pass_filenames: true
+        additional_dependencies: [ruff>=0.11.0]
