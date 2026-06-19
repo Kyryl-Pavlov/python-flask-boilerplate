@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python Flask Boilerplate</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── LIGHT THEME (pastel palette) ── */
+    :root {
+      --bg: #f8f5f2;
+      --surface: #ffffff;
+      --border: #ebe4df;
+      --text: #1c1a18;
+      --muted: #8a817a;
+      --accent: #ff9090;
+      --accent-dim: #e7a4a3;
+      --teal: #a5e2e2;
+      --mauve: #dfbebf;
+      --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+      --nav-bg: rgba(248,245,242,.88);
+      --badge-bg: rgba(163,248,248,.35);
+      --badge-color: #2d8a8a;
+      --badge-border: rgba(165,226,226,.6);
+      --teal-text: #2d8a8a;
+      --cmd-color: #2d8a8a;
+      --features-bg: rgba(163,248,248,.08);
+      --services-bg: rgba(223,190,191,.1);
+      --card-shadow: rgba(223,190,191,.3);
+    }
+
+    /* ── DARK THEME (Matrix palette) ── */
+    [data-theme="dark"] {
+      --bg: #0a0d12;
+      --surface: #131a22;
+      --border: #253444;
+      --text: #d8e8ec;
+      --muted: #7a9298;
+      --accent: #c0282a;
+      --accent-dim: #8b1c1c;
+      --teal: #5a7280;
+      --mauve: #3d5060;
+
+      --nav-bg: rgba(10,13,18,.9);
+      --badge-bg: rgba(61,80,96,.4);
+      --badge-color: #9fb5b8;
+      --badge-border: rgba(90,114,128,.5);
+      --teal-text: #9fb5b8;
+      --cmd-color: #9fb5b8;
+      --features-bg: rgba(19,26,34,.6);
+      --services-bg: rgba(37,52,68,.3);
+      --card-shadow: rgba(192,40,42,.15);
+    }
+
+    /* ── GLOBAL ── */
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--font); line-height: 1.6;
+      transition: background-color .3s, color .3s;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { font-family: var(--mono); font-size: .85em; }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--nav-bg); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between; height: 56px;
+      transition: background-color .3s, border-color .3s;
+    }
+    nav .logo { font-weight: 700; font-size: 1rem; color: var(--text); display: flex; align-items: center; gap: .5rem; }
+    nav .logo svg { color: var(--teal); transition: color .3s; }
+    nav .links { display: flex; align-items: center; gap: 1.5rem; font-size: .875rem; }
+    nav .links a { color: var(--muted); transition: color .2s; }
+    nav .links a:hover { color: var(--text); text-decoration: none; }
+
+    /* ── THEME TOGGLE ── */
+    .theme-toggle {
+      background: none; border: 1px solid var(--border); border-radius: var(--radius);
+      color: var(--muted); cursor: pointer; padding: .3rem .45rem;
+      display: flex; align-items: center; line-height: 1;
+      transition: color .2s, border-color .2s, background .2s;
+    }
+    .theme-toggle:hover { color: var(--text); border-color: var(--muted); background: var(--surface); }
+    .theme-toggle svg { display: block; }
+
+    /* ── HERO ── */
+    .hero-wrap { position: relative; overflow: hidden; }
+    .hero-author {
+      display: inline-flex; align-items: center; gap: .6rem;
+      margin-bottom: 2rem;
+      padding: .35rem .75rem .35rem .35rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+      font-size: .8rem; color: var(--muted); font-weight: 500;
+      text-decoration: none;
+      transition: border-color .2s, color .2s, background .3s;
+    }
+    .hero-author:hover { border-color: var(--accent); color: var(--text); text-decoration: none; }
+    .hero-author img {
+      width: 28px; height: 28px; border-radius: 50%; object-fit: cover;
+      border: 1.5px solid var(--border);
+    }
+    .hero-author strong { color: var(--text); font-weight: 600; }
+    #heroCanvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .hero { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 5rem 2rem 4rem; text-align: center; }
+    .badge {
+      display: inline-block; margin-bottom: 1.5rem;
+      background: var(--badge-bg); color: var(--badge-color);
+      border: 1px solid var(--badge-border);
+      border-radius: 999px; padding: .25rem .875rem; font-size: .8rem; font-weight: 600; letter-spacing: .04em;
+      transition: background .3s, color .3s;
+    }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.25rem; }
+    .hero h1 span { color: var(--accent); transition: color .3s; }
+    .hero p { font-size: 1.125rem; color: var(--muted); max-width: 620px; margin: 0 auto 2.5rem; }
+    .cta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .6rem 1.4rem; border-radius: var(--radius); font-size: .9rem; font-weight: 600; cursor: pointer;
+      transition: opacity .15s, transform .1s, box-shadow .2s;
+    }
+    .btn:hover { opacity: .88; transform: translateY(-1px); text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+
+    /* ── QUICK START ── */
+    .quick-start { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 0 2rem 5rem; }
+    .quick-start h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; text-align: center; }
+    .code-block {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; transition: background .3s, border-color .3s;
+    }
+    .code-block pre {
+      padding: 1.25rem 1.5rem; font-family: var(--mono); font-size: .825rem;
+      line-height: 1.7; color: var(--text); overflow-x: auto;
+    }
+    .code-block pre .comment { color: var(--muted); }
+    .code-block pre .cmd { color: var(--cmd-color); font-weight: 600; transition: color .3s; }
+
+    /* ── FEATURES ── */
+    .features {
+      background: var(--features-bg);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 5rem 2rem;
+      transition: background .3s, border-color .3s;
+    }
+    .features-inner { max-width: 1060px; margin: 0 auto; }
+    .section-label {
+      font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--teal-text); margin-bottom: .75rem; transition: color .3s;
+    }
+    .section-title { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; margin-bottom: .75rem; }
+    .section-desc { color: var(--muted); max-width: 540px; margin-bottom: 3rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.5rem;
+      transition: border-color .2s, transform .2s, box-shadow .2s, background .3s;
+    }
+    .card:hover { border-color: var(--mauve); transform: translateY(-2px); box-shadow: 0 4px 16px var(--card-shadow); }
+    .card-icon { font-size: 1.5rem; margin-bottom: .75rem; }
+    .card h3 { font-size: .95rem; font-weight: 700; margin-bottom: .4rem; }
+    .card p { font-size: .85rem; color: var(--muted); line-height: 1.55; }
+
+    /* ── STACK ── */
+    .stack { max-width: 1060px; margin: 0 auto; padding: 5rem 2rem; }
+    .stack-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2.5rem; }
+    .stack-item {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      display: flex; flex-direction: column; gap: .25rem;
+      transition: background .3s, border-color .3s;
+    }
+    .stack-item .layer { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .stack-item .name { font-size: .9rem; font-weight: 600; }
+
+    /* ── SERVICES ── */
+    .services {
+      background: var(--services-bg);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 5rem 2rem;
+      transition: background .3s, border-color .3s;
+    }
+    .services-inner { max-width: 1060px; margin: 0 auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; margin-top: 2.5rem; }
+    th { text-align: left; padding: .6rem 1rem; font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: .7rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; transition: border-color .3s; }
+    tr:last-child td { border-bottom: none; }
+    .port { font-family: var(--mono); font-size: .8rem; color: var(--teal-text); transition: color .3s; }
+    .service-name { font-family: var(--mono); font-size: .8rem; font-weight: 600; }
+
+    /* ── ABOUT ── */
+    .about { max-width: 860px; margin: 0 auto; padding: 5rem 2rem; }
+    .about-card {
+      display: flex; gap: 2.5rem; align-items: flex-start;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 2.5rem;
+      transition: background .3s, border-color .3s;
+    }
+    .about-avatar {
+      width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
+      border: 3px solid var(--border); flex-shrink: 0;
+      transition: border-color .3s;
+    }
+    .about-body { flex: 1; min-width: 0; }
+    .about-name { font-size: 1.35rem; font-weight: 800; margin-bottom: .15rem; }
+    .about-title { font-size: .875rem; color: var(--teal-text); font-weight: 600; margin-bottom: 1rem; transition: color .3s; }
+    .about-bio { font-size: .9rem; color: var(--muted); line-height: 1.65; margin-bottom: 1.25rem; }
+    .about-links { display: flex; gap: .75rem; flex-wrap: wrap; }
+    .about-link {
+      display: inline-flex; align-items: center; gap: .4rem;
+      font-size: .825rem; font-weight: 600; padding: .35rem .85rem;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      color: var(--text); background: var(--bg);
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .about-link:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+    @media (max-width: 600px) {
+      .about-card { flex-direction: column; align-items: center; text-align: center; }
+      .about-links { justify-content: center; }
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center; padding: 3rem 2rem;
+      font-size: .825rem; color: var(--muted);
+      border-top: 1px solid var(--border);
+      transition: border-color .3s;
+    }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--text); }
+
+    @media (max-width: 600px) {
+      nav .links { display: none; }
+      .hero { padding: 3.5rem 1.5rem 3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <span class="logo">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    Flask Boilerplate
+  </span>
+  <div class="links">
+    <a href="#features">Features</a>
+    <a href="#stack">Stack</a>
+    <a href="#services">Services</a>
+    <a href="#about">About</a>
+    <a href="https://github.com/Kyryl-Pavlov/python-flask-boilerplate">GitHub</a>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"></button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero-wrap">
+<canvas id="heroCanvas"></canvas>
+<section class="hero">
+  <div class="badge">Production-Ready · Python 3.12</div>
+  <h1>Flask API Boilerplate<br/>that <span>ships fast</span></h1>
+  <a class="hero-author" href="#about">
+    <img src="./avatar.jpg" alt="Kyryl Pavlov" />
+    Built by <strong>Kyryl Pavlov</strong> · Full-Stack Engineer
+  </a>
+  <p>A clean foundation for scalable REST and GraphQL APIs — JWT auth, Postgres, S3 uploads, structured logging, Prometheus metrics, and a full observability stack, all wired up from day one.</p>
+  <div class="cta">
+    <a class="btn btn-primary" href="https://github.com/Kyryl-Pavlov/python-flask-boilerplate">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      View on GitHub
+    </a>
+    <a class="btn btn-secondary" href="https://github.com/Kyryl-Pavlov/python-flask-boilerplate#running-the-full-stack">Quick Start</a>
+  </div>
+</section>
+
+<!-- QUICK START -->
+<div class="quick-start">
+  <h2>Up in three commands</h2>
+  <div class="code-block">
+    <pre><span class="comment"># 1. Clone and enter the project</span>
+<span class="cmd">git clone https://github.com/Kyryl-Pavlov/python-flask-boilerplate</span>
+<span class="cmd">cd python-flask-boilerplate</span>
+
+<span class="comment"># 2. Copy environment config</span>
+<span class="cmd">cp .env.local.example .env.local</span>
+
+<span class="comment"># 3. Start the full stack</span>
+<span class="cmd">docker compose up --build</span></pre>
+  </div>
+</div>
+</div>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="features-inner">
+    <div class="section-label">Features</div>
+    <h2 class="section-title">Everything you need</h2>
+    <p class="section-desc">Skip the boilerplate setup and start building features on day one.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="card-icon">🔀</div>
+        <h3>Dual API layer</h3>
+        <p>Every endpoint exposed over both REST (Flask blueprints, versioned at <code>/api/v1/</code>) and GraphQL (Strawberry, at <code>/graphql</code>). Same models and services, two transports.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔐</div>
+        <h3>JWT authentication</h3>
+        <p>Access tokens (15 min) and refresh tokens (30 days) out of the box. Register, login, and refresh endpoints pre-wired for both REST and GraphQL.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🗄️</div>
+        <h3>Postgres + migrations</h3>
+        <p>SQLAlchemy models, Flask-Migrate (Alembic) for schema changes, and an interactive <code>migrate.sh</code> helper. Migrations run automatically on container startup.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">☁️</div>
+        <h3>S3 media uploads</h3>
+        <p>Upload files to S3 (real AWS in production, LocalStack locally). Presigned URLs generated on demand — S3 keys stored in the DB, not URLs.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📋</div>
+        <h3>Structured logging</h3>
+        <p>Fanout logger dispatches to Console, Sentry, CloudWatch, and Loki simultaneously. Sensitive data (passwords, tokens) masked automatically before any backend sees it.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📈</div>
+        <h3>Prometheus metrics</h3>
+        <p>Per-endpoint request rate, error rate, and latency histograms at <code>/metrics</code>. Scraped every 15 s — query raw at <code>:9090</code> or via pre-built Grafana dashboards.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <h3>Grafana dashboards</h3>
+        <p>Flask App and Host Metrics dashboards auto-provisioned on startup. No manual setup — open <code>localhost:3000</code> and they're already there.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🖥️</div>
+        <h3>Host metrics</h3>
+        <p>Node Exporter exposes CPU, memory, disk I/O, network, and load average from the host OS. Works on Docker Desktop for Windows via WSL2.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🐛</div>
+        <h3>VSCode debugger</h3>
+        <p>Two pre-configured launch profiles: attach to the running Docker container, or run Flask directly on the host with infrastructure auto-started.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">✅</div>
+        <h3>Pre-commit hooks</h3>
+        <p>Ruff format + lint on every commit. Autofixable violations are fixed and staged automatically — the commit only aborts for issues that need manual attention.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STACK -->
+<section class="stack" id="stack">
+  <div class="section-label">Technology</div>
+  <h2 class="section-title">Built on proven tools</h2>
+  <p class="section-desc" style="color:var(--muted)">Carefully chosen defaults — swap any layer as your project grows.</p>
+  <div class="stack-grid">
+    <div class="stack-item"><span class="layer">Runtime</span><span class="name">Python 3.12</span></div>
+    <div class="stack-item"><span class="layer">Framework</span><span class="name">Flask 3.x</span></div>
+    <div class="stack-item"><span class="layer">GraphQL</span><span class="name">Strawberry</span></div>
+    <div class="stack-item"><span class="layer">Database</span><span class="name">PostgreSQL</span></div>
+    <div class="stack-item"><span class="layer">ORM</span><span class="name">SQLAlchemy 2</span></div>
+    <div class="stack-item"><span class="layer">Migrations</span><span class="name">Alembic / Flask-Migrate</span></div>
+    <div class="stack-item"><span class="layer">Auth</span><span class="name">Flask-JWT-Extended</span></div>
+    <div class="stack-item"><span class="layer">Storage</span><span class="name">AWS S3 / LocalStack</span></div>
+    <div class="stack-item"><span class="layer">Metrics</span><span class="name">Prometheus + Grafana</span></div>
+    <div class="stack-item"><span class="layer">Logs</span><span class="name">Loki + Grafana</span></div>
+    <div class="stack-item"><span class="layer">Error tracking</span><span class="name">Sentry</span></div>
+    <div class="stack-item"><span class="layer">Production server</span><span class="name">Gunicorn</span></div>
+    <div class="stack-item"><span class="layer">Linting / Format</span><span class="name">Ruff</span></div>
+    <div class="stack-item"><span class="layer">Infra</span><span class="name">Docker Compose</span></div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section class="services" id="services">
+  <div class="services-inner">
+    <div class="section-label">Local Stack</div>
+    <h2 class="section-title">Full infrastructure in one command</h2>
+    <p style="color:var(--muted); margin-top:.5rem; max-width:540px"><code>docker compose up --build</code> starts everything below. No manual service installs required.</p>
+    <table>
+      <thead>
+        <tr><th>Service</th><th>Port</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="service-name">app</td><td class="port">5000 · 5678</td><td>Flask API + debugpy</td></tr>
+        <tr><td class="service-name">postgres</td><td class="port">5432</td><td>Primary database</td></tr>
+        <tr><td class="service-name">localstack</td><td class="port">4566</td><td>AWS S3 + CloudWatch emulator</td></tr>
+        <tr><td class="service-name">pgadmin</td><td class="port">5050</td><td>Postgres GUI</td></tr>
+        <tr><td class="service-name">s3-console</td><td class="port">8080</td><td>S3 bucket browser</td></tr>
+        <tr><td class="service-name">loki</td><td class="port">3100</td><td>Log aggregation</td></tr>
+        <tr><td class="service-name">prometheus</td><td class="port">9090</td><td>Metrics database + query UI</td></tr>
+        <tr><td class="service-name">grafana</td><td class="port">3000</td><td>Dashboards — metrics &amp; logs</td></tr>
+        <tr><td class="service-name">node-exporter</td><td class="port">9100</td><td>Host OS metrics</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="about" id="about">
+  <div class="section-label" style="text-align:center">About the author</div>
+  <div class="about-card">
+    <img class="about-avatar" src="./avatar.jpg" alt="Kyryl Pavlov" />
+    <div class="about-body">
+      <div class="about-name">Kyryl Pavlov
+        <svg width="22" height="15" viewBox="0 0 22 15" style="vertical-align:middle;border-radius:2px;display:inline-block" xmlns="http://www.w3.org/2000/svg"><rect width="22" height="7.5" fill="#005BBB"/><rect y="7.5" width="22" height="7.5" fill="#FFD500"/></svg>
+        <svg width="22" height="15" viewBox="0 0 22 15" style="vertical-align:middle;border-radius:2px;display:inline-block" xmlns="http://www.w3.org/2000/svg"><rect width="22" height="15" fill="#003399"/><defs><polygon id="eu-s" points="0,-0.9 0.224,-0.307 0.856,-0.278 0.361,0.117 0.529,0.728 0,0.38 -0.529,0.728 -0.361,0.117 -0.856,-0.278 -0.224,-0.307" fill="#FFCC00"/></defs><use href="#eu-s" transform="translate(11,3)"/><use href="#eu-s" transform="translate(13.25,3.6)"/><use href="#eu-s" transform="translate(14.9,5.25)"/><use href="#eu-s" transform="translate(15.5,7.5)"/><use href="#eu-s" transform="translate(14.9,9.75)"/><use href="#eu-s" transform="translate(13.25,11.4)"/><use href="#eu-s" transform="translate(11,12)"/><use href="#eu-s" transform="translate(8.75,11.4)"/><use href="#eu-s" transform="translate(7.1,9.75)"/><use href="#eu-s" transform="translate(6.5,7.5)"/><use href="#eu-s" transform="translate(7.1,5.25)"/><use href="#eu-s" transform="translate(8.75,3.6)"/></svg>
+      </div>
+      <div class="about-title">Full-Stack Web Developer · Valencia, Spain</div>
+      <p class="about-bio">
+        Software Engineer with 5 years of commercial experience building e-commerce projects.
+        Strong background in server-side technologies (Node.js, TypeScript, Python) and cloud infrastructure (AWS),
+        combined with modern front-end tools like React and Next.js.
+        Proven ability to design scalable APIs, integrate security protocols, and collaborate with cross-functional teams.
+        This boilerplate distils production patterns from real projects into a clean, ready-to-use foundation.
+      </p>
+      <div class="about-links">
+        <a class="about-link" href="https://www.linkedin.com/in/kyryl-pavlov/" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
+          LinkedIn
+        </a>
+        <a class="about-link" href="https://github.com/Kyryl-Pavlov" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
+        <a class="about-link" href="mailto:kirillpavlov4u@gmail.com">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          kirillpavlov4u@gmail.com
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>
+    <a href="https://github.com/Kyryl-Pavlov/python-flask-boilerplate">python-flask-boilerplate</a>
+    &nbsp;·&nbsp;
+    Released under the <a href="https://github.com/Kyryl-Pavlov/python-flask-boilerplate/blob/main/LICENSE">MIT License</a>
+  </p>
+</footer>
+
+<script>
+// ── PACKET ANIMATION ──
+(function () {
+  const canvas = document.getElementById('heroCanvas');
+  const ctx = canvas.getContext('2d');
+  const NODE_COUNT = 13;
+  const MAX_PACKETS = 7;
+  const MAX_EDGE_RATIO = 0.38;
+
+  let W, H, nodes, edges, packets = [];
+
+  function isDark() { return document.documentElement.dataset.theme === 'dark'; }
+
+  function palette() {
+    return isDark()
+      ? { node: 'rgba(90,114,128,0.55)', pulse: [159,181,184], edge: 'rgba(37,52,68,0.9)', dot: '#c0282a', glow: [192,40,42] }
+      : { node: 'rgba(165,226,226,0.55)', pulse: [165,226,226],  edge: 'rgba(165,226,226,0.28)', dot: '#ff9090', glow: [255,144,144] };
+  }
+
+  function rgba([r,g,b], a) { return `rgba(${r},${g},${b},${a})`; }
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function buildGraph() {
+    nodes = Array.from({ length: NODE_COUNT }, () => ({
+      x: W * 0.05 + Math.random() * W * 0.9,
+      y: H * 0.05 + Math.random() * H * 0.9,
+      r: 2.5 + Math.random() * 1.5,
+      pulse: 0,
+    }));
+    const maxD = Math.hypot(W, H) * MAX_EDGE_RATIO;
+    edges = [];
+    for (let i = 0; i < nodes.length; i++)
+      for (let j = i + 1; j < nodes.length; j++)
+        if (Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y) < maxD)
+          edges.push([i, j]);
+  }
+
+  function spawnPacket() {
+    if (packets.length >= MAX_PACKETS || !edges.length) return;
+    const [a, b] = edges[Math.floor(Math.random() * edges.length)];
+    const rev = Math.random() > 0.5;
+    packets.push({ from: rev ? b : a, to: rev ? a : b, t: 0, speed: 0.004 + Math.random() * 0.006, trail: [] });
+  }
+
+  function init() {
+    resize();
+    buildGraph();
+    packets = [];
+    for (let i = 0; i < 4; i++) spawnPacket();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const c = palette();
+
+    // edges
+    ctx.strokeStyle = c.edge;
+    ctx.lineWidth = 0.8;
+    for (const [i, j] of edges) {
+      ctx.beginPath();
+      ctx.moveTo(nodes[i].x, nodes[i].y);
+      ctx.lineTo(nodes[j].x, nodes[j].y);
+      ctx.stroke();
+    }
+
+    // packets
+    for (let i = packets.length - 1; i >= 0; i--) {
+      const p = packets[i];
+      p.t = Math.min(1, p.t + p.speed);
+      const fx = nodes[p.from].x, fy = nodes[p.from].y;
+      const tx = nodes[p.to].x,   ty = nodes[p.to].y;
+      const x = fx + (tx - fx) * p.t;
+      const y = fy + (ty - fy) * p.t;
+      p.trail.push({ x, y });
+      if (p.trail.length > 10) p.trail.shift();
+
+      // trail
+      p.trail.forEach((pt, idx) => {
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = rgba(c.glow, (idx / p.trail.length) * 0.35);
+        ctx.fill();
+      });
+
+      // glow halo
+      const g = ctx.createRadialGradient(x, y, 0, x, y, 10);
+      g.addColorStop(0, rgba(c.glow, 0.3));
+      g.addColorStop(1, rgba(c.glow, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
+
+      // dot
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = c.dot; ctx.fill();
+
+      if (p.t >= 1) {
+        nodes[p.to].pulse = 1;
+        packets.splice(i, 1);
+        setTimeout(spawnPacket, Math.random() * 600 + 100);
+      }
+    }
+
+    // nodes
+    for (const n of nodes) {
+      if (n.pulse > 0) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r + (1 - n.pulse) * 14, 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(c.pulse, n.pulse * 0.7);
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        n.pulse = Math.max(0, n.pulse - 0.022);
+      }
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fillStyle = c.node; ctx.fill();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  init();
+  draw();
+  window.addEventListener('resize', init);
+})();
+
+// ── THEME TOGGLE ──
+const html = document.documentElement;
+  const btn  = document.getElementById('themeToggle');
+
+  const MOON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+  const SUN  = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+
+  function applyTheme(theme) {
+    html.dataset.theme = theme;
+    btn.innerHTML = theme === 'dark' ? SUN : MOON;
+    btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  }
+
+  const saved = localStorage.getItem('theme') || 'light';
+  applyTheme(saved);
+
+  btn.addEventListener('click', () => {
+    const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    applyTheme(next);
+  });
+</script>
+</body>
+</html>
