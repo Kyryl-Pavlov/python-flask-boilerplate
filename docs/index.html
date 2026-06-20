@@ -275,9 +275,114 @@
     }
     .arch-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; opacity: .8; }
 
+    /* ── TESTING ── */
+    .testing-section {
+      background: var(--features-bg);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 5rem 2rem;
+      transition: background .3s, border-color .3s;
+    }
+    .testing-inner { max-width: 1060px; margin: 0 auto; }
+    .test-stats {
+      display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 3rem;
+    }
+    .test-stat {
+      flex: 1 1 140px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      display: flex; flex-direction: column; gap: .25rem;
+      transition: background .3s, border-color .3s;
+    }
+    .test-stat-value { font-size: 1.75rem; font-weight: 800; color: var(--teal-text); line-height: 1; transition: color .3s; }
+    .test-stat-label { font-size: .75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .test-run {
+      margin-top: 2.5rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem;
+    }
+    .test-run-block { display: flex; flex-direction: column; gap: .5rem; }
+    .test-run-block .run-label { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+    /* ── CI/CD PRICING ── */
+    .pricing-section { max-width: 1060px; margin: 0 auto; padding: 5rem 2rem; }
+    .callout {
+      display: flex; align-items: flex-start; gap: 1rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.25rem 1.5rem; margin-bottom: 2.5rem;
+      font-size: .875rem; line-height: 1.65;
+      transition: background .3s, border-color .3s;
+    }
+    .callout-free { border-color: var(--teal); }
+    .callout-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: .1rem; }
+    .callout strong { display: block; font-size: .95rem; margin-bottom: .2rem; }
+    .callout p { color: var(--muted); margin: 0; }
+    .pricing-sub { font-size: .9rem; font-weight: 700; margin: 2.5rem 0 1rem; }
+    .pricing-breakdown {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; margin-bottom: 2.5rem;
+      transition: background .3s, border-color .3s;
+    }
+    .pb-row {
+      display: grid; grid-template-columns: 1fr 100px 100px;
+      padding: .55rem 1.25rem; font-size: .845rem;
+      border-bottom: 1px solid var(--border); align-items: center;
+    }
+    .pb-row:last-child { border-bottom: none; }
+    .pb-row.pb-head {
+      font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--muted); background: var(--bg);
+    }
+    .pb-row .pb-cold { color: var(--muted); font-family: var(--mono); font-size: .8rem; }
+    .pb-row .pb-warm { color: var(--teal-text); font-family: var(--mono); font-size: .8rem; font-weight: 600; transition: color .3s; }
+    .pb-row.pb-total { font-weight: 700; border-top: 2px solid var(--border); }
+    .pb-row.pb-cost { background: var(--bg); }
+    .pipeline-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem;
+      margin-bottom: 2.5rem;
+    }
+    .pipeline-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; transition: background .3s, border-color .3s;
+    }
+    .pipeline-card:hover { border-color: var(--mauve); }
+    .pipeline-head {
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+    }
+    .pipeline-name { font-size: .95rem; font-weight: 700; margin-bottom: .2rem; }
+    .pipeline-trigger {
+      display: inline-block; font-size: .72rem; font-weight: 600; padding: .15rem .55rem;
+      border-radius: 999px; border: 1px solid var(--border); color: var(--muted);
+    }
+    .pipeline-phases { padding: .5rem 0; }
+    .pipeline-phase {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: .38rem 1.25rem; font-size: .82rem; gap: 1rem;
+    }
+    .pipeline-phase span:first-child { color: var(--muted); }
+    .pipeline-phase .ph-time { font-family: var(--mono); font-size: .78rem; color: var(--text); white-space: nowrap; }
+    .pipeline-phase .ph-fixed { font-family: var(--mono); font-size: .78rem; color: var(--accent-dim); white-space: nowrap; }
+    .pipeline-foot {
+      border-top: 2px solid var(--border); padding: .85rem 1.25rem;
+      display: grid; grid-template-columns: 1fr 1fr;
+    }
+    .pf-item { display: flex; flex-direction: column; gap: .1rem; }
+    .pf-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .pf-value { font-size: 1.1rem; font-weight: 800; color: var(--teal-text); transition: color .3s; }
+    .pricing-tiers {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    .pricing-tier {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.25rem; transition: background .3s, border-color .3s;
+    }
+    .pt-freq { font-size: .72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .4rem; }
+    .pt-cost { font-size: 1.6rem; font-weight: 800; color: var(--text); line-height: 1; margin-bottom: .35rem; }
+    .pt-detail { font-size: .78rem; color: var(--muted); line-height: 1.5; }
+
     @media (max-width: 600px) {
       nav .links { display: none; }
       .hero { padding: 3.5rem 1.5rem 3rem; }
+      .pb-row { grid-template-columns: 1fr 80px 80px; }
     }
   </style>
 </head>
@@ -291,6 +396,8 @@
   </span>
   <div class="links">
     <a href="#features">Features</a>
+    <a href="#testing">Testing</a>
+    <a href="#pricing">CI/CD Cost</a>
     <a href="#stack">Stack</a>
     <a href="#services">Services</a>
     <a href="#about">About</a>
@@ -427,6 +534,131 @@
   </div>
 </section>
 
+<!-- TESTING -->
+<section class="testing-section" id="testing">
+  <div class="testing-inner">
+    <div class="section-label">Testing</div>
+    <h2 class="section-title">Three-tier test pyramid</h2>
+    <p class="section-desc">Unit and integration tests need no Docker and run in seconds. E2E tests run in CI/CD against the real stack.</p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <h3>Unit tests</h3>
+        <p>Pure functions only — zero external dependencies. Covers sensitive-data masking, <code>AppLogger</code> fanout and level routing, CloudWatch JSON serialization, and <code>CacheService</code> JSON wrap / TTL / ping.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔌</div>
+        <h3>Integration tests</h3>
+        <p>Flask test client with SQLite in-memory database — no Docker required. Tests every REST endpoint and GraphQL resolver (auth, media, events, cache) with AWS services mocked at the function boundary.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🌐</div>
+        <h3>E2E tests</h3>
+        <p>Real HTTP through Nginx to a fully running stack — Postgres, LocalStack S3/SQS, Redis. Happy paths only, runs in CI/CD via <code>docker-compose.ci.yml</code>. Target URL overridable via <code>E2E_BASE_URL</code>.</p>
+      </div>
+    </div>
+
+    <div class="test-run">
+      <div class="test-run-block">
+        <span class="run-label">Unit &amp; integration — no Docker</span>
+        <div class="code-block">
+          <pre><span class="cmd">pip install -r requirements-test.txt</span>
+<span class="cmd">pytest tests/app/unit tests/app/integration</span>
+<span class="comment"># with coverage report</span>
+<span class="cmd">pytest tests/app/unit tests/app/integration \
+    --cov=app --cov-report=term-missing</span></pre>
+        </div>
+      </div>
+      <div class="test-run-block">
+        <span class="run-label">E2E — CI/CD stack</span>
+        <div class="code-block">
+          <pre><span class="cmd">docker compose -f docker-compose.ci.yml up -d --wait</span>
+<span class="cmd">pytest tests/app/e2e/</span>
+<span class="cmd">docker compose -f docker-compose.ci.yml down</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CI/CD PRICING -->
+<section class="pricing-section" id="pricing">
+  <div class="section-label">CI/CD Cost</div>
+  <h2 class="section-title">What a build costs on GitHub Actions</h2>
+  <p class="section-desc">Linux runners at $0.008&nbsp;/&nbsp;min. LocalStack and the production Docker image are the two main cost drivers.</p>
+
+  <div class="pricing-sub">Cost per pipeline</div>
+  <div class="pipeline-grid">
+
+    <!-- Unit tests -->
+    <div class="pipeline-card">
+      <div class="pipeline-head">
+        <div class="pipeline-name">⚡ Unit Tests</div>
+        <span class="pipeline-trigger">Every push &amp; PR</span>
+      </div>
+      <div class="pipeline-phases">
+        <div class="pipeline-phase"><span>Runner setup</span><span class="ph-time">~30s</span></div>
+        <div class="pipeline-phase"><span>pip install <em>(cached)</em></span><span class="ph-time">~10s</span></div>
+        <div class="pipeline-phase"><span>pytest tests/app/unit</span><span class="ph-time">~2s</span></div>
+      </div>
+      <div class="pipeline-foot">
+        <div class="pf-item"><span class="pf-label">Total</span><span class="pf-value">~1 min</span></div>
+        <div class="pf-item"><span class="pf-label">Cost / build</span><span class="pf-value">~$0.008</span></div>
+      </div>
+    </div>
+
+    <!-- Integration tests -->
+    <div class="pipeline-card">
+      <div class="pipeline-head">
+        <div class="pipeline-name">🔌 Integration Tests</div>
+        <span class="pipeline-trigger">Every push &amp; PR</span>
+      </div>
+      <div class="pipeline-phases">
+        <div class="pipeline-phase"><span>Runner setup</span><span class="ph-time">~30s</span></div>
+        <div class="pipeline-phase"><span>pip install <em>(cached)</em></span><span class="ph-time">~10s</span></div>
+        <div class="pipeline-phase"><span>pytest tests/app/integration</span><span class="ph-time">~5s</span></div>
+      </div>
+      <div class="pipeline-foot">
+        <div class="pf-item"><span class="pf-label">Total</span><span class="pf-value">~1 min</span></div>
+        <div class="pf-item"><span class="pf-label">Cost / build</span><span class="pf-value">~$0.008</span></div>
+      </div>
+    </div>
+
+    <!-- E2E tests -->
+    <div class="pipeline-card">
+      <div class="pipeline-head">
+        <div class="pipeline-name">🌐 E2E Tests</div>
+        <span class="pipeline-trigger">Merge to main only</span>
+      </div>
+      <div class="pipeline-phases">
+        <div class="pipeline-phase"><span>Runner setup</span><span class="ph-time">~30s</span></div>
+        <div class="pipeline-phase"><span>pip install <em>(cached)</em></span><span class="ph-time">~10s</span></div>
+        <div class="pipeline-phase"><span>Pull images <em>(cached)</em></span><span class="ph-time">~15s</span></div>
+        <div class="pipeline-phase"><span>Build app image <em>(layer cache)</em></span><span class="ph-time">~30s</span></div>
+        <div class="pipeline-phase"><span>Postgres + Redis startup</span><span class="ph-time">~30s</span></div>
+        <div class="pipeline-phase"><span>LocalStack S3 + SQS init</span><span class="ph-fixed">~75s ⚠ fixed</span></div>
+        <div class="pipeline-phase"><span>DB migrate + app health check</span><span class="ph-time">~35s</span></div>
+        <div class="pipeline-phase"><span>pytest tests/app/e2e + teardown</span><span class="ph-time">~35s</span></div>
+      </div>
+      <div class="pipeline-foot">
+        <div class="pf-item"><span class="pf-label">Total</span><span class="pf-value">~4–5 min</span></div>
+        <div class="pf-item"><span class="pf-label">Cost / build</span><span class="pf-value">~$0.03</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="pricing-sub">LocalStack is the only non-cacheable cost</div>
+  <div class="callout">
+    <span class="callout-icon">⚠️</span>
+    <div>
+      <strong>E2E floor: ~75 s per build no matter what</strong>
+      <p>LocalStack must start S3 and SQS, pass its health check, and run the bucket init script on every run. Everything else in the E2E pipeline can be cached &mdash; this phase cannot.</p>
+    </div>
+  </div>
+</section>
+
 <!-- STACK -->
 <section class="stack" id="stack">
   <div class="section-label">Technology</div>
@@ -450,6 +682,7 @@
     <div class="stack-item"><span class="layer">Error tracking</span><span class="name">Sentry</span></div>
     <div class="stack-item"><span class="layer">Production server</span><span class="name">Gunicorn</span></div>
     <div class="stack-item"><span class="layer">Linting / Format</span><span class="name">Ruff</span></div>
+    <div class="stack-item"><span class="layer">Testing</span><span class="name">pytest · pytest-cov</span></div>
     <div class="stack-item"><span class="layer">Infra</span><span class="name">Docker Compose</span></div>
   </div>
 </section>

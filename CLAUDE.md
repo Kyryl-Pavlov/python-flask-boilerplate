@@ -286,6 +286,86 @@ pre-commit run --all-files
 
 Tool config lives in `pyproject.toml` (`[tool.ruff]`). The hook script is `scripts/ruff_hook.py`.
 
+## Testing
+
+### Structure
+
+Tests live under `tests/app/` mirroring the source tree:
+
+```
+tests/
+└── app/
+    ├── unit/          — pure functions, zero external deps (run in < 2 s)
+    │   ├── api/         rest_api_response(), log level selection
+    │   ├── graphql_api/ event_to_payload(), field mapping
+    │   ├── logging/     mask_sensitive(), AppLogger fanout, CloudWatch serialization
+    │   └── services/    CacheService JSON wrap/unwrap, TTL, ping
+    ├── integration/   — Flask test client + SQLite in-memory (no Docker needed)
+    └── e2e/           — real HTTP against the full CI stack (Docker required)
+```
+
+### Running tests
+
+```bash
+# Install test dependencies (includes pytest, pytest-flask, pytest-cov, requests)
+pip install -r requirements-test.txt
+
+# Unit + integration — no Docker needed, < 2 s
+pytest tests/app/unit tests/app/integration
+
+# With coverage report
+pytest tests/app/unit tests/app/integration --cov=app --cov-report=term-missing
+
+# E2E — requires the CI stack to be running
+docker compose -f docker-compose.ci.yml up -d --wait
+pytest tests/app/e2e
+docker compose -f docker-compose.ci.yml down
+```
+
+### Coverage
+
+Current baseline: **87%** (138 tests, ~2 s). Intentional gaps:
+- `aws_s3_service`, `aws_sqs_service` — SDK wiring only, no project logic to verify
+- `loki_logger`, `sentry_logger` — thin SDK call wrappers
+
+### Key fixtures (`tests/app/integration/conftest.py`)
+
+| Fixture | Scope | What it does |
+|---|---|---|
+| `app` | session | `create_app("testing")` with SQLite in-memory + `StaticPool` |
+| `fast_bcrypt` | session, autouse | Patches `bcrypt.gensalt` to 4 rounds instead of 13, keeps tests fast |
+| `clean_tables` | function, autouse | Truncates all tables after each test for isolation |
+| `client` | function | Flask test client |
+| `auth_headers` | function | Registers + logs in a user, returns REST `Authorization` header |
+| `gql` | function | Posts a GraphQL query to `/graphql`, returns the response |
+| `gql_auth_headers` | function | Same as `auth_headers` but via the GraphQL login mutation |
+| `mock_cache` | function | Attaches a `MagicMock` as `app.cache`, restores `None` after the test |
+
+### Gotchas
+
+**`fast_bcrypt` infinite recursion** — the side_effect lambda must capture the real function *before* the `with patch(...)` block starts, not call `bcrypt.gensalt` by name (which would be the mock after patching):
+
+```python
+_real_gensalt = _bcrypt.gensalt          # capture BEFORE patch starts
+with patch("app.models.user.bcrypt.gensalt",
+           side_effect=lambda rounds=12: _real_gensalt(rounds=4)):
+    yield
+```
+
+**GraphQL vs REST auth** — resolvers call `verify_jwt_in_request()` manually, not via `@jwt_required()`. GraphQL always returns HTTP 200 — success/failure lives in `response.data.<resolver>.success`. Integration tests POST to `/graphql` with the `Authorization` header directly.
+
+**SQLite + UUID columns** — both `db.Uuid` (User) and `db.UUID(as_uuid=True)` (Media, Event) work with SQLite in tests. SQLAlchemy handles type coercion transparently.
+
+**E2E `BASE_URL`** — defaults to `http://localhost/api/v1`. Override via `E2E_BASE_URL` env var to point at staging or any other environment.
+
+### Adding tests for a new feature
+
+1. Unit tests in `tests/app/unit/<layer>/` for any new pure/utility functions.
+2. REST integration tests in `tests/app/integration/test_<resource>.py`.
+3. GraphQL integration tests in `tests/app/integration/test_graphql_<resource>.py`.
+4. Add the happy-path to `tests/app/e2e/test_e2e.py` if it involves a new infrastructure dependency (new AWS service, new DB table, etc.).
+5. Mock at the service-function boundary, not at the SDK level: `patch("app.api.v1.<module>.<fn>")` or `patch("app.graphql_api.resolvers.<module>.<fn>")`.
+
 ## Style Guide
 
 **Naming:**
