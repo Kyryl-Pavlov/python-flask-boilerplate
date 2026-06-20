@@ -1,0 +1,778 @@
+{
+  "info": {
+    "name": "Flask Boilerplate API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "media_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "REST",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "health"]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"ok\",\n  \"version\": \"1.0.0\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"secret123\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/register",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "auth", "register"]
+                }
+              },
+              "response": [
+                {
+                  "name": "201 Created",
+                  "status": "Created",
+                  "code": 201,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"\",\n  \"data\": {}\n}"
+                }
+              ]
+            },
+            {
+              "name": "Login",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.success && res.data) {",
+                      "  pm.collectionVariables.set('access_token', res.data.access_token);",
+                      "  pm.collectionVariables.set('refresh_token', res.data.refresh_token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"secret123\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/login",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "auth", "login"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"\",\n  \"data\": {\n    \"access_token\": \"<jwt>\",\n    \"refresh_token\": \"<jwt>\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Refresh Token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.success && res.data) {",
+                      "  pm.collectionVariables.set('access_token', res.data.access_token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{refresh_token}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/refresh",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "auth", "refresh"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"\",\n  \"data\": {\n    \"access_token\": \"<jwt>\"\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Media",
+          "item": [
+            {
+              "name": "Upload File",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.success && res.data) {",
+                      "  pm.collectionVariables.set('media_id', res.data.media_id);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{access_token}}" }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "",
+                      "description": "Select any file to upload"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/media/upload",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "media", "upload"]
+                }
+              },
+              "response": [
+                {
+                  "name": "201 Created",
+                  "status": "Created",
+                  "code": 201,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"File uploaded\",\n  \"data\": {\n    \"media_id\": \"<uuid>\",\n    \"url\": \"http://localhost:4566/media-bucket/media/<user_uuid>/<filename>?...\",\n    \"expires_in\": 3600\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Signed URL",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{access_token}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/media/{{media_id}}/url",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "media", "{{media_id}}", "url"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"ok\",\n  \"data\": {\n    \"url\": \"http://localhost:4566/media-bucket/media/<user_uuid>/<filename>?...\"\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Cache",
+          "item": [
+            {
+              "name": "Ping Redis",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/cache/ping",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "cache", "ping"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK — Redis available",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"\",\n  \"data\": {\n    \"redis\": \"ok\"\n  }\n}"
+                },
+                {
+                  "name": "503 — Redis not configured",
+                  "status": "Service Unavailable",
+                  "code": 503,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": false,\n  \"message\": \"Redis not configured\",\n  \"data\": null\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Cached Value",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/cache/test",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "cache", "test"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK — cache miss",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Cache miss — value computed and stored\",\n  \"data\": {\n    \"computed_at\": 1718800000.123,\n    \"payload\": \"Simulated expensive computation result\",\n    \"source\": \"computed\",\n    \"ttl\": 60\n  }\n}"
+                },
+                {
+                  "name": "200 OK — cache hit",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Cache hit\",\n  \"data\": {\n    \"computed_at\": 1718800000.123,\n    \"payload\": \"Simulated expensive computation result\",\n    \"source\": \"cache\",\n    \"remaining_ttl\": 42\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Invalidate Cache",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/cache/test",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "cache", "test"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Cache key deleted\",\n  \"data\": {\n    \"deleted\": true\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Events",
+          "item": [
+            {
+              "name": "Publish Event",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{access_token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"user.action\",\n  \"payload\": {\n    \"detail\": \"example\"\n  }\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/events",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "events"]
+                }
+              },
+              "response": [
+                {
+                  "name": "202 Accepted",
+                  "status": "Accepted",
+                  "code": 202,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"\",\n  \"data\": {\n    \"message_id\": \"<sqs-message-id>\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "List Events",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{access_token}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/events",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "events"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"\",\n  \"data\": [\n    {\n      \"id\": \"<uuid>\",\n      \"sqs_message_id\": \"<sqs-id>\",\n      \"type\": \"user.action\",\n      \"payload\": { \"detail\": \"example\" },\n      \"status\": \"processed\",\n      \"created_at\": \"2026-06-19T10:00:00+00:00\",\n      \"processed_at\": \"2026-06-19T10:00:01+00:00\"\n    }\n  ]\n}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GraphQL",
+      "item": [
+        {
+          "name": "Health Query",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"{ health { success message data { version } } }\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": ["{{base_url}}"],
+              "path": ["graphql"]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"health\": {\n      \"success\": true,\n      \"message\": \"The server is up and running\",\n      \"data\": {\n        \"version\": \"1.0.0\"\n      }\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Auth Mutations",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation { register(email: \\\"user@example.com\\\", password: \\\"secret123\\\") { success message } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"register\": {\n      \"success\": true,\n      \"message\": \"\"\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Login",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "const login = res.data && res.data.login;",
+                      "if (login && login.success && login.data) {",
+                      "  pm.collectionVariables.set('access_token', login.data.accessToken);",
+                      "  pm.collectionVariables.set('refresh_token', login.data.refreshToken);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation { login(email: \\\"user@example.com\\\", password: \\\"secret123\\\") { success message data { accessToken refreshToken } } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"login\": {\n      \"success\": true,\n      \"message\": \"\",\n      \"data\": {\n        \"accessToken\": \"<jwt>\",\n        \"refreshToken\": \"<jwt>\"\n      }\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Refresh Token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "const refresh = res.data && res.data.refreshToken;",
+                      "if (refresh && refresh.success && refresh.data) {",
+                      "  pm.collectionVariables.set('access_token', refresh.data.accessToken);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{refresh_token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation { refreshToken { success message data { accessToken } } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"refreshToken\": {\n      \"success\": true,\n      \"message\": \"\",\n      \"data\": {\n        \"accessToken\": \"<jwt>\"\n      }\n    }\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Media",
+          "item": [
+            {
+              "name": "Upload File",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "const upload = res.data && res.data.uploadFile;",
+                      "if (upload && upload.success && upload.data) {",
+                      "  pm.collectionVariables.set('media_id', upload.data.mediaId);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{access_token}}" }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "operations",
+                      "value": "{\"query\": \"mutation($file: Upload!) { uploadFile(file: $file) { success message data { mediaId url expiresIn } } }\", \"variables\": {\"file\": null}}",
+                      "type": "text",
+                      "description": "GraphQL multipart request spec — operations field"
+                    },
+                    {
+                      "key": "map",
+                      "value": "{\"0\": [\"variables.file\"]}",
+                      "type": "text",
+                      "description": "Maps field '0' to the file variable"
+                    },
+                    {
+                      "key": "0",
+                      "type": "file",
+                      "src": "",
+                      "description": "The actual file binary"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"uploadFile\": {\n      \"success\": true,\n      \"message\": \"File uploaded\",\n      \"data\": {\n        \"mediaId\": \"<uuid>\",\n        \"url\": \"http://localhost:4566/media-bucket/media/<user_uuid>/<filename>?...\",\n        \"expiresIn\": 3600\n      }\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Signed URL",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{access_token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"{ signedUrl(mediaId: \\\"{{media_id}}\\\") { success message data } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"signedUrl\": {\n      \"success\": true,\n      \"message\": \"ok\",\n      \"data\": \"http://localhost:4566/media-bucket/media/<user_uuid>/<filename>?...\"\n    }\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Cache",
+          "item": [
+            {
+              "name": "Ping Redis",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"{ cachePing { success message data } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"cachePing\": {\n      \"success\": true,\n      \"message\": \"\",\n      \"data\": \"ok\"\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Cached Value",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"{ cacheTest { success message data { source computedAt payload ttl remainingTtl } } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK — cache miss",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"cacheTest\": {\n      \"success\": true,\n      \"message\": \"Cache miss — value computed and stored\",\n      \"data\": {\n        \"source\": \"computed\",\n        \"computedAt\": 1718800000.123,\n        \"payload\": \"Simulated expensive computation result\",\n        \"ttl\": 60,\n        \"remainingTtl\": null\n      }\n    }\n  }\n}"
+                },
+                {
+                  "name": "200 OK — cache hit",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"cacheTest\": {\n      \"success\": true,\n      \"message\": \"Cache hit\",\n      \"data\": {\n        \"source\": \"cache\",\n        \"computedAt\": 1718800000.123,\n        \"payload\": \"Simulated expensive computation result\",\n        \"ttl\": null,\n        \"remainingTtl\": 42\n      }\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Clear Cache",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation { clearCache { success message data } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"clearCache\": {\n      \"success\": true,\n      \"message\": \"Cache key deleted\",\n      \"data\": true\n    }\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Events",
+          "item": [
+            {
+              "name": "Publish Event",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{access_token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation { publishEvent(type: \\\"user.action\\\", payload: {detail: \\\"example\\\"}) { success message data } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"publishEvent\": {\n      \"success\": true,\n      \"message\": \"\",\n      \"data\": \"<sqs-message-id>\"\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "List Events",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{access_token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"{ events { success message data { id sqsMessageId type payload status createdAt processedAt } } }\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/graphql",
+                  "host": ["{{base_url}}"],
+                  "path": ["graphql"]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"data\": {\n    \"events\": {\n      \"success\": true,\n      \"message\": \"\",\n      \"data\": [\n        {\n          \"id\": \"<uuid>\",\n          \"sqsMessageId\": \"<sqs-id>\",\n          \"type\": \"user.action\",\n          \"payload\": { \"detail\": \"example\" },\n          \"status\": \"processed\",\n          \"createdAt\": \"2026-06-19T10:00:00+00:00\",\n          \"processedAt\": \"2026-06-19T10:00:01+00:00\"\n        }\n      ]\n    }\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Introspection",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"{ __schema { queryType { name } types { name kind } } }\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": ["{{base_url}}"],
+              "path": ["graphql"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

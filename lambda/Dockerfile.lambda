@@ -1,0 +1,16 @@
+# AWS Lambda deployment image.
+# Uses the official Lambda Python base image which includes the
+# Runtime Interface Client (RIC) — no long-polling loop needed.
+# Lambda invokes handler.handler(event, context) directly per SQS batch.
+FROM public.ecr.aws/lambda/python:3.12
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt -t .
+
+COPY handler.py .
+
+# Lambda base image installs files as 644/755 (world-readable).
+# nobody can read them at runtime; Lambda sandbox provides further isolation.
+USER nobody
+
+CMD ["handler.handler"]
