@@ -33,6 +33,7 @@ Provides a solid foundation for scalable RESTful and GraphQL APIs with clean fol
   - [Logs](#logs-loki)
   - [Production on AWS Fargate](#production-on-aws-fargate)
 - [Code Quality](#code-quality)
+- [Testing](#testing)
 - [Debugging](#debugging)
 - [Production Image](#production-image)
 
@@ -643,6 +644,78 @@ pre-commit run --all-files
 ```
 
 Ruff configuration (line length, selected rules, import ordering) lives in `pyproject.toml`.
+
+---
+
+## Testing
+
+### Install test dependencies
+
+```bash
+python -m venv .venv
+
+# Windows:
+.venv\Scripts\Activate.ps1
+# macOS/Linux:
+source .venv/bin/activate
+
+pip install -r requirements-test.txt
+```
+
+### Unit and integration tests (no Docker required)
+
+Tests use SQLite in-memory for the database and mock all AWS services — no infrastructure needed.
+
+```bash
+pytest tests/app/unit tests/app/integration
+```
+
+With coverage:
+
+```bash
+pytest tests/app/unit tests/app/integration --cov=app --cov-report=term-missing
+```
+
+Current coverage: **87%** across 138 tests in under 2 seconds.
+
+### E2E tests (CI/CD only)
+
+E2E tests make real HTTP requests through Nginx to a fully running stack — real Postgres, LocalStack S3/SQS, and Redis. They are designed to run in CI/CD pipelines, not during local development.
+
+```bash
+# Start the CI stack (stripped-down: no Grafana, Prometheus, pgAdmin, etc.)
+docker compose -f docker-compose.ci.yml up -d --wait
+
+# Run smoke tests
+pytest tests/app/e2e/
+
+# Tear down
+docker compose -f docker-compose.ci.yml down
+```
+
+Override the target URL to run against a deployed environment:
+
+```bash
+E2E_BASE_URL=https://staging.example.com/api/v1 pytest tests/app/e2e/
+```
+
+### Test structure
+
+```
+tests/
+└── app/
+    ├── unit/          — pure functions, no external deps (< 2 s total)
+    │   ├── api/         rest_api_response(), log level selection
+    │   ├── graphql_api/ event_to_payload(), field mapping
+    │   ├── logging/     mask_sensitive(), AppLogger fanout, CloudWatch serialization
+    │   └── services/    CacheService JSON wrap/unwrap, TTL default, ping failure
+    ├── integration/   — Flask test client + SQLite in-memory (< 2 s total)
+    │   ├── REST:        test_auth, test_media, test_events, test_cache, test_health
+    │   └── GraphQL:     test_graphql_auth, test_graphql_media, test_graphql_events,
+    │                    test_graphql_cache, test_graphql_health
+    └── e2e/           — real HTTP through Nginx (CI/CD only)
+        └── test_e2e.py  health check, full auth flow, S3 upload, SQS event publish
+```
 
 ---
 
