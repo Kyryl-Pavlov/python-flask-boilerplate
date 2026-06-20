@@ -4,9 +4,9 @@
 
 # python-flask-boilerplate
 
-A clean, production-ready Flask Web API boilerplate to start your Python backend projects fast.
+A production-ready **Python 3.12 / Flask** boilerplate for building scalable **REST** and **GraphQL** APIs — engineered for teams who want a clean architecture without spending weeks on infrastructure.
 
-Provides a solid foundation for scalable RESTful and GraphQL APIs with clean folder architecture, JWT authentication, database migrations, AWS S3 media uploads, async event processing via SQS + Lambda, Redis caching, and an Nginx reverse proxy with DDoS protection out of the box.
+Ships fully wired: **JWT authentication** (Flask-JWT-Extended), **PostgreSQL** with SQLAlchemy 2 ORM and Alembic migrations, **AWS S3** file uploads with presigned URLs, async event processing via **AWS SQS + Lambda**, **Redis** caching, **Nginx** reverse proxy with DDoS protection, structured logging to **Sentry / CloudWatch / Loki**, **Prometheus** metrics with **Grafana** dashboards, **Docker Compose** full-stack setup, and a **pytest** test suite (unit · integration · E2E) — all production-wired from the first commit.
 
 ---
 
@@ -32,8 +32,11 @@ Provides a solid foundation for scalable RESTful and GraphQL APIs with clean fol
   - [Host metrics](#host-metrics-node-exporter)
   - [Logs](#logs-loki)
   - [Production on AWS Fargate](#production-on-aws-fargate)
+- [Security](#security)
 - [Code Quality](#code-quality)
 - [Testing](#testing)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [Deploying to AWS](#deploying-to-aws)
 - [Debugging](#debugging)
 - [Production Image](#production-image)
 
@@ -91,9 +94,36 @@ Every feature is exposed over **both REST and GraphQL**. Both share the same dat
 │       ├── utils.py         # Shared GraphQL helpers (model → type converters)
 │       └── schema.py        # Merged GraphQL schema
 ├── lambda/
-│   ├── handler.py           # Lambda entry point + local polling worker
-│   ├── Dockerfile           # Worker container image
+│   ├── handler.py           # Shared: handler(event, context) for Lambda + poll() for local dev
+│   ├── Dockerfile           # Local dev — long-polling worker (used by docker-compose)
+│   ├── Dockerfile.lambda    # AWS Lambda — uses Lambda Python base image
 │   └── requirements.txt     # Lambda dependencies (boto3, sqlalchemy, psycopg2)
+├── .github/
+│   └── workflows/
+│       ├── ci.yml           # Lint + test on every push and pull request
+│       └── deploy.yml       # Build images → push to ECR → deploy to ECS + Lambda (manual trigger)
+├── terraform/
+│   ├── bootstrap/           # Run once: creates S3 state bucket + DynamoDB lock table
+│   ├── environments/
+│   │   ├── dev.tfvars       # Dev-specific sizes and flags
+│   │   └── prod.tfvars      # Prod: Multi-AZ, deletion protection, HTTPS
+│   ├── modules/
+│   │   ├── networking/      # VPC, NAT gateway, subnets, security groups, VPC flow logs
+│   │   ├── ecr/             # ECR repositories for app and worker images
+│   │   ├── iam/             # ECS roles, Lambda role, GitHub OIDC deploy role
+│   │   ├── rds/             # PostgreSQL on RDS + DATABASE_URL stored in Secrets Manager
+│   │   ├── elasticache/     # Redis (ElastiCache replication group)
+│   │   ├── s3/              # Media bucket with encryption + HTTPS-only policy
+│   │   ├── sqs/             # Events queue + dead-letter queue
+│   │   ├── alb/             # Application Load Balancer with HTTP→HTTPS redirect
+│   │   ├── waf/             # WAF: OWASP Top 10, SQLi rules, per-IP rate limit
+│   │   ├── ecs/             # Fargate cluster, task definition, service
+│   │   └── lambda/          # Container image Lambda function + SQS event source
+│   ├── main.tf              # Root module — wires all child modules
+│   ├── variables.tf         # All input variables with descriptions
+│   ├── outputs.tf           # Outputs map directly to GitHub environment vars
+│   ├── versions.tf          # Provider pins + S3 backend stub
+│   └── backend.hcl          # Fill-in template — gitignored, never committed
 ├── nginx/
 │   └── nginx.conf           # Reverse proxy config with DDoS protection
 ├── migrations/              # Alembic migration files (auto-generated on up --build)
@@ -579,7 +609,14 @@ The `worker` container (`lambda/handler.py`) polls SQS using long-polling (`Wait
 
 **Deploying to AWS:**
 
-Deploy `lambda/handler.py` as a Lambda function with an SQS trigger. The same `handler(event, context)` entry point works unchanged. On AWS, `DATABASE_URL` points to RDS, `SQS_QUEUE_URL` to the real queue, and `AWS_SQS_ENDPOINT_URL` is unset (boto3 routes to real AWS automatically).
+`lambda/handler.py` already exposes `handler(event, context)` — the Lambda entry point. Two Dockerfiles handle the two runtimes:
+
+| File | Used by | Runtime |
+|---|---|---|
+| `lambda/Dockerfile` | `docker-compose.yml` | Long-polling loop (`poll()`) — blocks and polls SQS continuously |
+| `lambda/Dockerfile.lambda` | `deploy.yml` CI/CD | AWS Lambda base image — Lambda runtime invokes `handler()` per SQS batch |
+
+The CI/CD pipeline builds `Dockerfile.lambda` and pushes it to ECR. On AWS, `DATABASE_URL` points to RDS, `SQS_QUEUE_URL` to the real queue, and `AWS_SQS_ENDPOINT_URL` is unset (boto3 routes to real AWS automatically).
 
 > For high-concurrency Lambda deployments, add **RDS Proxy** in front of your database to multiplex connections. `NullPool` is already configured in `handler.py` so each invocation closes its connection immediately.
 
@@ -607,6 +644,60 @@ if cache:
 ```
 
 If `REDIS_URL` is not set, `current_app.cache` is `None` and all cache calls are skipped — the app degrades gracefully without errors.
+
+---
+
+## Security
+
+The boilerplate ships with a hardened baseline. The measures below are active out of the box — understand them before changing anything.
+
+### Application
+
+**`SECRET_KEY` is required** — the app refuses to start if `SECRET_KEY` is not set. There is no default fallback. Set it in `.env.local` for local dev; Secrets Manager injects it in production via the ECS task definition.
+
+**File uploads are restricted** — only `jpg`, `jpeg`, `png`, `gif`, `webp`, `pdf`, `mp4`, `mov` are accepted. Anything else returns `415`. Maximum upload size is 50 MB (Flask's `MAX_CONTENT_LENGTH`). To extend the allowlist, edit `_ALLOWED_EXTENSIONS` in [app/api/v1/media.py](app/api/v1/media.py).
+
+**SQL queries are stripped from logs** — SQLAlchemy exceptions include the full query and bound parameters in their string representation. `sanitize_traceback()` in [app/logging/data_filter.py](app/logging/data_filter.py) redacts `[SQL: ...]` and `[parameters: ...]` blocks from every traceback before it reaches any log backend (Console, Sentry, CloudWatch, Loki). The Lambda worker has an equivalent `_safe_exc()` helper.
+
+**GraphQL introspection is disabled in production** — controlled by `GRAPHQL_INTROSPECTION` in `config.py`. `True` in `DevelopmentConfig` (playground needs it), `False` in `ProductionConfig`. Introspection lets unauthenticated callers enumerate your entire schema.
+
+**JWT algorithm is pinned** — `JWT_ALGORITHM = "HS256"` is explicit in config, preventing silent changes on library upgrades.
+
+### Nginx (local dev)
+
+All responses include:
+
+| Header | Protects against |
+|---|---|
+| `X-Frame-Options: SAMEORIGIN` | Clickjacking |
+| `X-Content-Type-Options: nosniff` | MIME-type sniffing attacks |
+| `Referrer-Policy: strict-origin-when-cross-origin` | URL leakage to third parties |
+| `Permissions-Policy: geolocation=(), camera=(), microphone=()` | Unwanted browser API access |
+| `server_tokens off` | Nginx version disclosure |
+
+**HSTS is commented out** — `Strict-Transport-Security` is in the config but disabled. Enable it only after TLS is live on the ALB; enabling it over HTTP permanently breaks access for returning visitors.
+
+**Content-Security-Policy is not set** — a CSP covering the GraphQL playground requires tuning per deployment. Add it once you know your frontend's allowed origins.
+
+### Infrastructure (production, via Terraform)
+
+| Measure | What it does |
+|---|---|
+| Redis TLS | `transit_encryption_enabled = true` — all data between ECS tasks and ElastiCache is encrypted in transit (`rediss://` scheme) |
+| Non-root containers | Flask app runs as `app` system user; Lambda runs as `nobody` — no root access if a container is compromised |
+| ECS task role scoped to send-only SQS | Flask app can only `SendMessage`. Only the Lambda worker can `ReceiveMessage` and `DeleteMessage` |
+| Secrets Manager 7-day recovery | All secrets have a 7-day deletion grace period — accidental `terraform destroy` is recoverable |
+| WAF logging | All blocked requests logged to CloudWatch (`aws-waf-logs-{prefix}`, 90-day retention) — full forensic trail of who was blocked and why |
+| ALB + private subnets | ECS tasks have no public IP — only the ALB is internet-facing. Traffic flows: Internet → WAF → ALB → ECS (private) |
+
+### What is not included (by design)
+
+| Gap | Reason | How to add |
+|---|---|---|
+| Content-Security-Policy | Requires per-deployment origin config | Add to `nginx/nginx.conf` once frontend origins are known |
+| JWT refresh token blacklisting | Stateless by design | Add Redis-backed blacklist if logout must immediately invalidate tokens |
+| Redis AUTH token | Private subnet + SG is sufficient isolation | Add `auth_token` in `terraform/modules/elasticache/main.tf` for multi-tenant setups |
+| MIME type sniffing | Files go to S3, never executed server-side | Add `python-magic` if serving files from a public CDN |
 
 ---
 
@@ -716,6 +807,166 @@ tests/
     └── e2e/           — real HTTP through Nginx (CI/CD only)
         └── test_e2e.py  health check, full auth flow, S3 upload, SQS event publish
 ```
+
+---
+
+## CI/CD Pipeline
+
+Two GitHub Actions workflows are included in `.github/workflows/`. They are designed for a **GitOps** model: merging to `develop` deploys to dev, merging to `main` deploys to production.
+
+### `ci.yml` — runs on every push and pull request
+
+Three parallel jobs, no Docker infrastructure needed for lint and unit tests:
+
+| Job | What it does | Docker needed |
+|---|---|---|
+| **Lint** | `ruff format --check` + `ruff check` | No |
+| **Unit & Integration Tests** | pytest with SQLite in-memory (~2 s) | No |
+| **E2E Tests** | Spins up `docker-compose.ci.yml`, runs full e2e suite | Yes |
+
+### `deploy-dev.yml` and `deploy-prod.yml` — triggered manually by default
+
+Two separate files — one per environment, no branch conditionals. To enable automatic deploys, change each file's trigger from `workflow_dispatch` to a push trigger:
+
+```yaml
+# deploy-dev.yml
+on:
+  push:
+    branches: [develop]
+
+# deploy-prod.yml
+on:
+  push:
+    branches: [main]
+```
+
+**Pipeline stages:**
+
+```
+build  ── all images pushed to ECR before anything deploys
+  │
+  ├── migrate-dev  ── ALL migrations run before any service update
+  │     │              ⚠ schema must stay backward-compatible (rolling update)
+  │     ├── deploy-dev          ── services in dependency tier order
+  │     └── deploy-workers-dev  ── Lambda workers (parallel with services)
+  │
+  └── migrate-prod  ── same, but pauses for manual approval first
+        ├── deploy-prod
+        └── deploy-workers-prod
+```
+
+**Why migrations are a separate job:** during a rolling ECS update, old and new task instances run simultaneously against the same database. Migrations must complete and be backward-compatible before any instance picks up the new code.
+
+**Adding a new microservice:** add a build step to `build`, a `run_migration` call in both `migrate-*` jobs, and a deploy step at the correct tier in both `deploy-*` jobs. Workers go in `deploy-workers-*`.
+
+The production approval gate is a native GitHub feature: create a `production` environment in **Settings → Environments**, add required reviewers, and the workflow pauses automatically.
+
+### Required GitHub configuration
+
+**Repository secret** (Settings → Secrets → Actions):
+
+| Secret | Value |
+|---|---|
+| `AWS_ROLE_ARN` | IAM role ARN created by Terraform (`terraform output github_actions_role_arn`) |
+
+**Environment variables** (Settings → Environments → `dev` and `production`):
+
+| Variable | Source |
+|---|---|
+| `ECS_CLUSTER` | `terraform output ecs_cluster` |
+| `ECS_SERVICE` | `terraform output ecs_service` |
+| `APP_TASK_FAMILY` | `terraform output app_task_family` |
+| `VPC_SUBNETS` | `terraform output vpc_subnets` |
+| `VPC_SECURITY_GROUPS` | `terraform output vpc_security_groups` |
+| `LAMBDA_FUNCTION_NAME` | `terraform output lambda_function_name` |
+
+All of these are printed by `terraform output` after the first `terraform apply`.
+
+---
+
+## Deploying to AWS
+
+The `terraform/` directory contains a complete, production-ready AWS infrastructure definition. It provisions everything the app needs — networking, compute, database, cache, queues, and security — as code.
+
+### Architecture
+
+```
+Internet → WAF → ALB (public subnets) → ECS Fargate (private subnets)
+                                              ↓              ↓
+                                            RDS          ElastiCache
+                                              ↓
+                                  SQS queue → Lambda worker
+```
+
+- The app is never directly reachable from the internet — only the ALB is public
+- NAT Gateway allows ECS tasks to reach AWS APIs (ECR, Secrets Manager, CloudWatch) outbound
+- All secrets (DB password, JWT key, Flask secret key) are stored in AWS Secrets Manager and injected into containers at startup — never in environment files or task definitions
+- WAF sits in front of the ALB with OWASP Top 10 rules, SQLi protection, and per-IP rate limiting
+
+### Prerequisites
+
+| Tool | Purpose |
+|---|---|
+| [Terraform](https://developer.hashicorp.com/terraform/install) ≥ 1.6 | Infrastructure provisioning |
+| [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) | Authenticate and bootstrap |
+| AWS account with admin access | Target for provisioning |
+
+### Bootstrap (once per AWS account)
+
+The S3 state bucket and DynamoDB lock table must exist before Terraform can store its own state. A minimal bootstrap module creates them with local state:
+
+```bash
+cd terraform/bootstrap
+terraform init
+terraform apply -var="bucket_name=myorg-flask-boilerplate-tfstate"
+# outputs: bucket_name and lock_table_name → copy these into the next step
+```
+
+### First deploy
+
+```bash
+cd terraform
+
+# 1. Fill in terraform/backend.hcl with the bucket and table names from bootstrap
+# 2. Fill in environments/dev.tfvars with your GitHub org, repo, and image placeholders
+
+terraform init -backend-config=backend.hcl
+
+# 3. Create ECR repositories first (images don't exist yet)
+terraform apply -target=module.ecr -var-file=environments/dev.tfvars
+
+# 4. Push initial images to ECR
+#    Either trigger the deploy workflow manually, or push directly:
+#    aws ecr get-login-password | docker login --username AWS --password-stdin <registry>
+#    docker build -t <registry>/flask-boilerplate-dev/app:latest .
+#    docker push <registry>/flask-boilerplate-dev/app:latest
+#    (repeat for lambda/Dockerfile.lambda → /worker:latest)
+
+# 5. Set app_image and worker_image in dev.tfvars to the ECR URLs from step 3
+# 6. Apply everything
+terraform apply -var-file=environments/dev.tfvars
+
+# 7. Copy outputs into GitHub environment vars
+terraform output
+```
+
+### Subsequent infrastructure changes
+
+```bash
+terraform plan -var-file=environments/dev.tfvars   # preview
+terraform apply -var-file=environments/dev.tfvars  # apply
+```
+
+App image updates (ECS task definition, Lambda image) are managed by the CI/CD pipeline — Terraform uses `lifecycle { ignore_changes = [...] }` on those fields so it never rolls back what CI/CD deployed.
+
+### Estimated monthly cost
+
+| Environment | ~Cost |
+|---|---|
+| Dev (single task, db.t3.micro, no HTTPS) | ~$83/month |
+| Production (2 tasks, db.t3.small, Multi-AZ, HTTPS) | ~$134/month |
+
+The NAT Gateway (~$32/month) is the largest fixed cost in both environments. RDS and ElastiCache are the next largest. All compute (ECS Fargate, Lambda) scales to zero when idle.
 
 ---
 

@@ -2,11 +2,24 @@ import os
 from datetime import timedelta
 
 
+def _require(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(
+            f"{name} environment variable is not set — refusing to start"
+        )
+    return value
+
+
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY")
+    SECRET_KEY = _require("SECRET_KEY")
+    MAX_CONTENT_LENGTH = (
+        50 * 1024 * 1024
+    )  # 50 MB — Flask rejects larger requests with 413
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///dev.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or os.environ.get("SECRET_KEY")
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or SECRET_KEY
+    JWT_ALGORITHM = "HS256"
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
@@ -38,10 +51,12 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    GRAPHQL_INTROSPECTION = True
 
 
 class ProductionConfig(Config):
     DEBUG = False
+    GRAPHQL_INTROSPECTION = False
 
 
 class TestingConfig(Config):

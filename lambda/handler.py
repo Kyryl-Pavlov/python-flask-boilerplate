@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import uuid
 from datetime import UTC, datetime
 
@@ -14,6 +15,19 @@ SQS_QUEUE_URL = os.environ["SQS_QUEUE_URL"]
 POLL_WAIT_SECONDS = int(os.environ.get("POLL_WAIT_SECONDS", "5"))
 
 engine = sa.create_engine(DATABASE_URL, poolclass=NullPool)
+
+_SQL_BLOCK = re.compile(r"\[SQL:.*?\]", re.DOTALL)
+_PARAMS_BLOCK = re.compile(r"\[parameters:.*?\]", re.DOTALL)
+_DB_CONNSTR = re.compile(r"\b(postgresql|mysql|sqlite)(\+\w+)?://\S+", re.IGNORECASE)
+
+
+def _safe_exc(exc: Exception) -> str:
+    msg = _SQL_BLOCK.sub("[SQL redacted]", str(exc))
+    msg = _PARAMS_BLOCK.sub("[parameters redacted]", msg)
+    msg = _DB_CONNSTR.sub("[connection string redacted]", msg)
+    return f"{type(exc).__name__}: {msg}"
+
+
 metadata = sa.MetaData()
 sqs = boto3.client(
     "sqs",
@@ -76,7 +90,7 @@ def poll() -> None:
                     QueueUrl=SQS_QUEUE_URL, ReceiptHandle=msg["ReceiptHandle"]
                 )
             except Exception as exc:
-                print(f"[worker] failed {msg.get('MessageId')}: {exc}")
+                print(f"[worker] failed {msg.get('MessageId')}: {_safe_exc(exc)}")
 
 
 if __name__ == "__main__":

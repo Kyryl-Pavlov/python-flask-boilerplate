@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 _MASK = "***"
+
+# SQLAlchemy wraps the raw query and bound parameters in these blocks.
+# psycopg2/asyncpg may also embed connection strings in error messages.
+_SQL_BLOCK = re.compile(r"\[SQL:.*?\]", re.DOTALL)
+_PARAMS_BLOCK = re.compile(r"\[parameters:.*?\]", re.DOTALL)
+_DB_CONNSTR = re.compile(
+    r"\b(postgresql|mysql|sqlite|mongodb|redis)(\+\w+)?://\S+",
+    re.IGNORECASE,
+)
 
 _SENSITIVE_KEYS: frozenset[str] = frozenset(
     {
@@ -68,3 +78,11 @@ def _mask_dict(data: dict[str, Any]) -> dict[str, Any]:
 
 def _mask_list(items: list[Any]) -> list[Any]:
     return [_mask_dict(item) if isinstance(item, dict) else item for item in items]
+
+
+def sanitize_traceback(trace: str) -> str:
+    """Strip SQL statements, bound parameters, and connection strings from a traceback string."""
+    trace = _SQL_BLOCK.sub("[SQL redacted]", trace)
+    trace = _PARAMS_BLOCK.sub("[parameters redacted]", trace)
+    trace = _DB_CONNSTR.sub("[connection string redacted]", trace)
+    return trace

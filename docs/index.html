@@ -379,10 +379,138 @@
     .pt-cost { font-size: 1.6rem; font-weight: 800; color: var(--text); line-height: 1; margin-bottom: .35rem; }
     .pt-detail { font-size: .78rem; color: var(--muted); line-height: 1.5; }
 
+    /* ── SECURITY SECTION ── */
+    .security-section {
+      background: var(--services-bg);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 5rem 2rem;
+      transition: background .3s, border-color .3s;
+    }
+    .security-inner { max-width: 1060px; margin: 0 auto; }
+    .security-layers {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 1.25rem; margin-top: 2.5rem;
+    }
+    .security-layer {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; transition: background .3s, border-color .3s;
+    }
+    .security-layer-head {
+      padding: .75rem 1.25rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: .6rem;
+    }
+    .security-layer-icon { font-size: 1.1rem; }
+    .security-layer-name { font-size: .875rem; font-weight: 700; }
+    .security-items { padding: .15rem 0; }
+    .security-item {
+      display: flex; align-items: flex-start; gap: .65rem;
+      padding: .55rem 1.25rem; border-bottom: 1px solid var(--border); font-size: .82rem;
+    }
+    .security-item:last-child { border-bottom: none; }
+    .si-check { color: var(--teal-text); flex-shrink: 0; margin-top: .15rem; font-size: .85rem; font-weight: 700; transition: color .3s; }
+    .si-name { font-weight: 700; color: var(--text); margin-bottom: .15rem; }
+    .si-desc { color: var(--muted); line-height: 1.5; }
+
+    /* ── CI/CD PIPELINE SECTION ── */
+    .cicd-section {
+      background: var(--services-bg);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 5rem 2rem;
+      transition: background .3s, border-color .3s;
+    }
+    .cicd-inner { max-width: 1060px; margin: 0 auto; }
+    .workflow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; margin-top: 2.5rem; }
+    .workflow-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; transition: background .3s, border-color .3s;
+    }
+    .workflow-card:hover { border-color: var(--mauve); }
+    .workflow-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .workflow-file { font-family: var(--mono); font-size: .82rem; font-weight: 700; color: var(--teal-text); margin-bottom: .3rem; transition: color .3s; }
+    .workflow-desc { font-size: .82rem; color: var(--muted); }
+    .workflow-jobs { padding: .25rem 0; }
+    .workflow-job {
+      display: flex; align-items: flex-start; gap: .75rem;
+      padding: .55rem 1.25rem; font-size: .82rem; border-bottom: 1px solid var(--border);
+    }
+    .workflow-job:last-child { border-bottom: none; }
+    .job-icon { font-size: 1rem; flex-shrink: 0; margin-top: .05rem; }
+    .job-name { font-weight: 700; color: var(--text); }
+    .job-detail { font-size: .78rem; color: var(--muted); line-height: 1.45; margin-top: .1rem; }
+
+    .deploy-flow {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0; margin-top: 2.5rem; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+    }
+    .deploy-step {
+      background: var(--surface); padding: 1.25rem;
+      border-right: 1px solid var(--border);
+      transition: background .3s;
+      position: relative;
+    }
+    .deploy-step:last-child { border-right: none; }
+    .deploy-step::after {
+      content: '→'; position: absolute; right: -.7rem; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 1rem; z-index: 1; background: var(--surface);
+      padding: 0 .1rem;
+    }
+    .deploy-step:last-child::after { display: none; }
+    .step-num { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--teal-text); margin-bottom: .35rem; transition: color .3s; }
+    .step-name { font-size: .9rem; font-weight: 700; margin-bottom: .3rem; }
+    .step-detail { font-size: .78rem; color: var(--muted); line-height: 1.45; }
+
+    .secrets-table { margin-top: 2.5rem; }
+    .secrets-table h4 { font-size: .85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .75rem; }
+
+    /* ── AWS INFRA SECTION ── */
+    .infra-section {
+      background: var(--features-bg);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 5rem 2rem;
+      transition: background .3s, border-color .3s;
+    }
+    .infra-inner { max-width: 1060px; margin: 0 auto; }
+    .infra-modules {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+      gap: .75rem; margin-top: 2.5rem;
+    }
+    .infra-module {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: .9rem 1rem;
+      transition: background .3s, border-color .3s, transform .2s;
+    }
+    .infra-module:hover { transform: translateY(-2px); border-color: var(--mauve); }
+    .infra-module .mod-name { font-size: .875rem; font-weight: 700; margin-bottom: .25rem; font-family: var(--mono); color: var(--teal-text); transition: color .3s; }
+    .infra-module .mod-desc { font-size: .775rem; color: var(--muted); line-height: 1.45; }
+    .prod-arch {
+      margin-top: 2.5rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem 2rem; overflow-x: auto;
+      transition: background .3s, border-color .3s;
+    }
+    .prod-arch pre { font-family: var(--mono); font-size: .8rem; line-height: 1.8; color: var(--muted); white-space: pre; }
+    .prod-arch pre b { color: var(--text); }
+    .prod-arch pre em { color: var(--teal-text); font-style: normal; }
+    .cost-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 2.5rem; }
+    .cost-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.25rem; transition: background .3s, border-color .3s;
+    }
+    .cost-env { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .35rem; }
+    .cost-total { font-size: 1.75rem; font-weight: 800; color: var(--text); line-height: 1; margin-bottom: .85rem; }
+    .cost-line { display: flex; justify-content: space-between; font-size: .8rem; padding: .22rem 0; border-bottom: 1px solid var(--border); }
+    .cost-line:last-child { border-bottom: none; }
+    .cost-line .cl-name { color: var(--muted); }
+    .cost-line .cl-val { font-family: var(--mono); font-weight: 600; color: var(--teal-text); transition: color .3s; }
+    .cost-note { font-size: .75rem; color: var(--muted); margin-top: .6rem; line-height: 1.5; }
+
     @media (max-width: 600px) {
       nav .links { display: none; }
       .hero { padding: 3.5rem 1.5rem 3rem; }
       .pb-row { grid-template-columns: 1fr 80px 80px; }
+      .deploy-flow { grid-template-columns: 1fr; }
+      .deploy-step { border-right: none; border-bottom: 1px solid var(--border); }
+      .deploy-step:last-child { border-bottom: none; }
+      .deploy-step::after { content: '↓'; right: auto; left: 50%; top: auto; bottom: -.7rem; transform: translateX(-50%); }
     }
   </style>
 </head>
@@ -397,7 +525,9 @@
   <div class="links">
     <a href="#features">Features</a>
     <a href="#testing">Testing</a>
-    <a href="#pricing">CI/CD Cost</a>
+    <a href="#cicd">CI/CD</a>
+    <a href="#security">Security</a>
+    <a href="#infra">AWS Deploy</a>
     <a href="#stack">Stack</a>
     <a href="#services">Services</a>
     <a href="#about">About</a>
@@ -416,7 +546,7 @@
     <img src="./avatar.jpg" alt="Kyryl Pavlov" />
     Built by <strong>Kyryl Pavlov</strong> · Full-Stack Engineer
   </a>
-  <p>A clean foundation for scalable REST and GraphQL APIs — JWT auth, Postgres, S3 uploads, async event processing via SQS + Lambda, Redis caching, Nginx reverse proxy, structured logging, Prometheus metrics, and a full observability stack, all wired up from day one.</p>
+  <p>Production-ready Python&nbsp;3.12 / Flask boilerplate for scalable REST and GraphQL APIs. Ships with JWT auth, PostgreSQL + SQLAlchemy, AWS S3 uploads, async SQS&nbsp;+&nbsp;Lambda event processing, Redis caching, Nginx reverse proxy with DDoS protection, Prometheus metrics, Grafana dashboards, Loki log aggregation, Sentry error tracking, Docker Compose infrastructure, and a full pytest test suite — all wired from day one.</p>
   <div class="cta">
     <a class="btn btn-primary" href="https://github.com/Kyryl-Pavlov/python-flask-boilerplate">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -530,6 +660,21 @@
         <h3>Redis caching</h3>
         <p>Opt-in per endpoint via <code>CacheService</code>. The app degrades gracefully when Redis is unavailable — <code>current_app.cache</code> is <code>None</code> and cache calls are skipped without errors.</p>
       </div>
+      <div class="card">
+        <div class="card-icon">🚀</div>
+        <h3>GitHub Actions CI/CD</h3>
+        <p>Three pre-built workflows: <code>ci.yml</code> runs lint + unit + e2e on every push; <code>deploy-dev.yml</code> and <code>deploy-prod.yml</code> each build images, migrate the database, and roll out to ECS and Lambda. Production deploys require manual approval.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🏗️</div>
+        <h3>Terraform infrastructure</h3>
+        <p>Complete AWS infrastructure as code — VPC, ECS Fargate, RDS, ElastiCache, S3, SQS, Lambda, ALB, WAF, and IAM — split into 11 reusable modules with separate dev and prod configurations.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <h3>WAF + private network</h3>
+        <p>AWS WAF in front of the ALB with OWASP Top 10, SQLi, bad-input rules, and per-IP rate limiting. App runs in private subnets — never directly reachable from the internet.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -577,6 +722,391 @@
 <span class="cmd">pytest tests/app/e2e/</span>
 <span class="cmd">docker compose -f docker-compose.ci.yml down</span></pre>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CI/CD PIPELINE -->
+<section class="cicd-section" id="cicd">
+  <div class="cicd-inner">
+    <div class="section-label">CI/CD</div>
+    <h2 class="section-title">Two workflows, zero manual steps</h2>
+    <p class="section-desc">GitOps model: merging to <code>develop</code> deploys to dev, merging to <code>main</code> deploys to production (with a manual approval gate).</p>
+
+    <div class="workflow-grid">
+      <div class="workflow-card">
+        <div class="workflow-head">
+          <div class="workflow-file">ci.yml</div>
+          <div class="workflow-desc">Triggers on every push and pull request</div>
+        </div>
+        <div class="workflow-jobs">
+          <div class="workflow-job">
+            <span class="job-icon">🔍</span>
+            <div>
+              <div class="job-name">Lint</div>
+              <div class="job-detail"><code>ruff format --check</code> + <code>ruff check</code> — no Docker needed</div>
+            </div>
+          </div>
+          <div class="workflow-job">
+            <span class="job-icon">⚡</span>
+            <div>
+              <div class="job-name">Unit &amp; Integration Tests</div>
+              <div class="job-detail">pytest with SQLite in-memory — runs in ~2 s, no Docker needed</div>
+            </div>
+          </div>
+          <div class="workflow-job">
+            <span class="job-icon">🌐</span>
+            <div>
+              <div class="job-name">E2E Tests</div>
+              <div class="job-detail">Spins up <code>docker-compose.ci.yml</code>, runs full HTTP suite through Nginx, tears down</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="workflow-card">
+        <div class="workflow-head">
+          <div class="workflow-file">deploy-dev.yml</div>
+          <div class="workflow-desc">Targets <code>dev</code> environment — merge to <code>develop</code></div>
+        </div>
+        <div class="workflow-jobs">
+          <div class="workflow-job">
+            <span class="job-icon">📦</span>
+            <div>
+              <div class="job-name">Build</div>
+              <div class="job-detail">All service images pushed to ECR tagged <code>:{git-sha}</code> and <code>:develop</code></div>
+            </div>
+          </div>
+          <div class="workflow-job">
+            <span class="job-icon">🗄️</span>
+            <div>
+              <div class="job-name">Migrate</div>
+              <div class="job-detail">All service migrations run as one-off ECS tasks before any service is touched</div>
+            </div>
+          </div>
+          <div class="workflow-job">
+            <span class="job-icon">🚀</span>
+            <div>
+              <div class="job-name">Deploy + Deploy Workers</div>
+              <div class="job-detail">Services (tier order) and Lambda workers deploy in parallel — both need migrate to complete first</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="workflow-card">
+        <div class="workflow-head">
+          <div class="workflow-file">deploy-prod.yml</div>
+          <div class="workflow-desc">Targets <code>production</code> environment — merge to <code>main</code></div>
+        </div>
+        <div class="workflow-jobs">
+          <div class="workflow-job">
+            <span class="job-icon">📦</span>
+            <div>
+              <div class="job-name">Build</div>
+              <div class="job-detail">Same as dev — images tagged <code>:{git-sha}</code> and <code>:main</code></div>
+            </div>
+          </div>
+          <div class="workflow-job">
+            <span class="job-icon">🔒</span>
+            <div>
+              <div class="job-name">Migrate <em style="font-weight:400;font-size:.75rem;color:var(--muted)">(approval gate)</em></div>
+              <div class="job-detail">Pauses for a required reviewer. Approving this job unlocks the entire prod pipeline for this run</div>
+            </div>
+          </div>
+          <div class="workflow-job">
+            <span class="job-icon">🚀</span>
+            <div>
+              <div class="job-name">Deploy + Deploy Workers</div>
+              <div class="job-detail">Identical to dev — services then workers, both in parallel after migrate</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:2rem">
+      <div class="section-label" style="margin-bottom:.75rem">Job dependency graph</div>
+      <div class="deploy-flow">
+        <div class="deploy-step">
+          <div class="step-num">Job 1</div>
+          <div class="step-name">Build</div>
+          <div class="step-detail">All service images built and pushed to ECR in parallel. If any build fails, nothing deploys.</div>
+        </div>
+        <div class="deploy-step">
+          <div class="step-num">Job 2</div>
+          <div class="step-name">Migrate</div>
+          <div class="step-detail">ALL service migrations run as one-off ECS tasks before any service is touched. Schema must be backward-compatible — old and new code run together during rolling update.</div>
+        </div>
+        <div class="deploy-step">
+          <div class="step-num">Jobs 3a + 3b (parallel)</div>
+          <div class="step-name">Services + Workers</div>
+          <div class="step-detail">Services deploy in tier order (dependencies first). Lambda workers deploy in parallel — they consume queues, not serve requests, so they're independent of service tiers.</div>
+        </div>
+      </div>
+      <div class="callout" style="margin-top:1rem">
+        <span class="callout-icon">⚠️</span>
+        <div>
+          <strong>Backward-compatible migrations are required</strong>
+          <p>During a rolling ECS update, old and new task instances run simultaneously against the same database. Never drop a column the deployed code still reads. Use a two-phase approach: add the new column first, remove the old one in a later deploy.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:2rem">
+      <div class="callout">
+        <span class="callout-icon">🔑</span>
+        <div>
+          <strong>No long-lived AWS credentials in GitHub</strong>
+          <p>The deploy workflow authenticates via <strong>OIDC</strong> — GitHub exchanges a short-lived token for an IAM role scoped to your repo and branch. Only one GitHub secret is needed: <code>AWS_ROLE_ARN</code>. All other config (cluster name, service name, Lambda function) lives in GitHub environment variables, populated from <code>terraform output</code>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY -->
+<section class="security-section" id="security">
+  <div class="security-inner">
+    <div class="section-label">Security</div>
+    <h2 class="section-title">Hardened baseline out of the box</h2>
+    <p class="section-desc">Every layer secured by default — application code, network traffic, and cloud infrastructure. Nothing to enable; everything is on from day one.</p>
+
+    <div class="security-layers">
+
+      <!-- App -->
+      <div class="security-layer">
+        <div class="security-layer-head">
+          <span class="security-layer-icon">⚙️</span>
+          <span class="security-layer-name">Application</span>
+        </div>
+        <div class="security-items">
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">SECRET_KEY fail-fast</div>
+              <div class="si-desc">App refuses to start if <code>SECRET_KEY</code> is missing — no silent fallback to <code>None</code> that would break session signing</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">File upload allowlist + size limit</div>
+              <div class="si-desc">Only jpg, png, gif, webp, pdf, mp4, mov accepted (415 otherwise). 50 MB hard cap enforced before any handler runs</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">SQL stripped from logs</div>
+              <div class="si-desc">SQLAlchemy query text and bound parameters redacted from every traceback before reaching Console, Sentry, CloudWatch, or Loki</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">GraphQL introspection off in production</div>
+              <div class="si-desc">Schema enumeration disabled by config flag — unauthenticated callers cannot discover types, queries, or mutations</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">JWT algorithm pinned</div>
+              <div class="si-desc"><code>HS256</code> explicit in config — immune to library-default changes and <code>alg: none</code> bypass attempts</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">Non-root containers</div>
+              <div class="si-desc">Flask app runs as <code>app</code> system user; Lambda image uses <code>nobody</code> — no root access if a container is compromised</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Network -->
+      <div class="security-layer">
+        <div class="security-layer-head">
+          <span class="security-layer-icon">🌐</span>
+          <span class="security-layer-name">Network (Nginx)</span>
+        </div>
+        <div class="security-items">
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">Security response headers</div>
+              <div class="si-desc"><code>X-Frame-Options</code>, <code>X-Content-Type-Options</code>, <code>Referrer-Policy</code>, <code>Permissions-Policy</code> — applied to every response including errors</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">Rate limiting</div>
+              <div class="si-desc">300 req/min general; 20 req/min on auth endpoints to slow brute-force. Per-IP connection cap of 20 concurrent</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">Slowloris mitigation</div>
+              <div class="si-desc">Client body/header/send timeouts set to 10 s. Keeps slow-connection attacks from holding workers indefinitely</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">Method allowlist</div>
+              <div class="si-desc">Only GET, POST, PUT, PATCH, DELETE, OPTIONS pass through — all other HTTP methods return 405</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name"><code>/metrics</code> locked to internal network</div>
+              <div class="si-desc">Prometheus can scrape it; browsers on the public internet cannot reach it</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">Version hidden</div>
+              <div class="si-desc"><code>server_tokens off</code> — Nginx version not disclosed in response headers or error pages</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cloud -->
+      <div class="security-layer">
+        <div class="security-layer-head">
+          <span class="security-layer-icon">☁️</span>
+          <span class="security-layer-name">Cloud (AWS / Terraform)</span>
+        </div>
+        <div class="security-items">
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">WAF in front of ALB</div>
+              <div class="si-desc">OWASP Top 10, SQLi, known bad inputs, per-IP rate limit. All blocked requests logged to CloudWatch (90-day retention)</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">Private subnets</div>
+              <div class="si-desc">ECS tasks have no public IP — only the ALB is internet-facing. RDS, Redis, and Lambda are unreachable from outside the VPC</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">Redis encrypted in transit</div>
+              <div class="si-desc"><code>transit_encryption_enabled = true</code> on ElastiCache. Client connects via <code>rediss://</code> (TLS)</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">Secrets Manager — no env file secrets</div>
+              <div class="si-desc">DB password, JWT key, Flask secret generated by Terraform and injected at container startup. Never stored in task definitions or committed files</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">Least-privilege IAM</div>
+              <div class="si-desc">Flask app: SQS send-only. Lambda: SQS receive/delete only. GitHub Actions OIDC: scoped to specific repo and branch</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <span class="si-check">✓</span>
+            <div>
+              <div class="si-name">VPC flow logs</div>
+              <div class="si-desc">All network traffic logged to CloudWatch — full audit trail including rejected connection attempts</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- AWS INFRASTRUCTURE -->
+<section class="infra-section" id="infra">
+  <div class="infra-inner">
+    <div class="section-label">Infrastructure</div>
+    <h2 class="section-title">Production AWS infrastructure as code</h2>
+    <p class="section-desc">One <code>terraform apply</code> provisions everything. Secrets are generated and stored in Secrets Manager — never in env files.</p>
+
+    <div class="prod-arch">
+<pre>
+  <b>GitHub Actions</b>
+       │ push images (git SHA tag)
+       ▼
+  <em>ECR Repositories</em> ─────────────────────────────────┐
+       │ pull on ECS startup              pull on invocation │
+       ▼                                                     ▼
+<b>Internet</b> ──► <em>WAF</em> ──► <em>ALB</em> (public subnets)      <em>Lambda Worker</em>
+  (OWASP, SQLi,          │                             │
+   rate limit)           │ forward                    consumes
+                         ▼                             │
+                  <em>ECS Fargate</em> (private subnets)    <em>SQS Queue</em> ◄── Flask publishes
+                  Flask app on port 5000          (+ DLQ after 3 failures)
+                  /         |          \
+                 ▼          ▼          ▼
+              <em>RDS</em>       <em>Redis</em>      <em>S3</em>
+           PostgreSQL   ElastiCache  Media bucket
+              │         (cache)     (presigned URLs)
+              ▲
+              └────── Lambda also writes events here
+
+  <em>Secrets Manager</em>: DATABASE_URL · JWT_SECRET_KEY · SECRET_KEY
+  (injected into ECS containers at startup — never in env files)
+</pre>
+    </div>
+
+    <div class="section-label" style="margin-top:3rem;margin-bottom:.75rem">Terraform modules</div>
+    <div class="infra-modules">
+      <div class="infra-module"><div class="mod-name">networking</div><div class="mod-desc">VPC, public/private subnets, NAT gateway, 5 security groups, VPC flow logs</div></div>
+      <div class="infra-module"><div class="mod-name">ecr</div><div class="mod-desc">Two container registries (app + worker), scan on push, keep last 10 images</div></div>
+      <div class="infra-module"><div class="mod-name">iam</div><div class="mod-desc">ECS roles, Lambda role, GitHub OIDC deploy role — all least-privilege</div></div>
+      <div class="infra-module"><div class="mod-name">rds</div><div class="mod-desc">PostgreSQL 16, encrypted, DATABASE_URL stored in Secrets Manager</div></div>
+      <div class="infra-module"><div class="mod-name">elasticache</div><div class="mod-desc">Redis 7 replication group, encrypted at rest</div></div>
+      <div class="infra-module"><div class="mod-name">s3</div><div class="mod-desc">Media bucket, public access blocked, HTTPS-only bucket policy, CORS</div></div>
+      <div class="infra-module"><div class="mod-name">sqs</div><div class="mod-desc">Events queue + dead-letter queue, SSE, redrive after 3 failures</div></div>
+      <div class="infra-module"><div class="mod-name">alb</div><div class="mod-desc">Application Load Balancer, HTTP→HTTPS redirect, TLS 1.3 policy</div></div>
+      <div class="infra-module"><div class="mod-name">waf</div><div class="mod-desc">OWASP Top 10, SQLi, bad inputs, per-IP rate limit, CloudWatch metrics</div></div>
+      <div class="infra-module"><div class="mod-name">ecs</div><div class="mod-desc">Fargate cluster, task definition (secrets from Secrets Manager), service</div></div>
+      <div class="infra-module"><div class="mod-name">lambda</div><div class="mod-desc">Container image function in VPC, SQS event source mapping</div></div>
+      <div class="infra-module"><div class="mod-name">bootstrap</div><div class="mod-desc">One-time: S3 state bucket + DynamoDB lock table with local state</div></div>
+    </div>
+
+    <div class="section-label" style="margin-top:3rem;margin-bottom:.75rem">Estimated monthly cost</div>
+    <div class="cost-grid">
+      <div class="cost-card">
+        <div class="cost-env">Dev environment</div>
+        <div class="cost-total">~$83 / mo</div>
+        <div class="cost-line"><span class="cl-name">NAT Gateway</span><span class="cl-val">~$32</span></div>
+        <div class="cost-line"><span class="cl-name">ECS Fargate (1 task)</span><span class="cl-val">~$18</span></div>
+        <div class="cost-line"><span class="cl-name">RDS db.t3.micro</span><span class="cl-val">~$13</span></div>
+        <div class="cost-line"><span class="cl-name">ElastiCache t3.micro</span><span class="cl-val">~$13</span></div>
+        <div class="cost-line"><span class="cl-name">ALB</span><span class="cl-val">~$7</span></div>
+        <div class="cost-note">HTTP only (no ACM cert). NAT Gateway is the biggest fixed cost.</div>
+      </div>
+      <div class="cost-card">
+        <div class="cost-env">Production environment</div>
+        <div class="cost-total">~$134 / mo</div>
+        <div class="cost-line"><span class="cl-name">ECS Fargate (2 tasks)</span><span class="cl-val">~$36</span></div>
+        <div class="cost-line"><span class="cl-name">NAT Gateway</span><span class="cl-val">~$32</span></div>
+        <div class="cost-line"><span class="cl-name">RDS db.t3.small Multi-AZ</span><span class="cl-val">~$26</span></div>
+        <div class="cost-line"><span class="cl-name">WAF managed rules</span><span class="cl-val">~$20</span></div>
+        <div class="cost-line"><span class="cl-name">ElastiCache t3.micro</span><span class="cl-val">~$13</span></div>
+        <div class="cost-line"><span class="cl-name">ALB + HTTPS</span><span class="cl-val">~$7</span></div>
+        <div class="cost-note">Multi-AZ RDS + deletion protection. Lambda and SQS are pay-per-use (effectively free at low volume).</div>
       </div>
     </div>
   </div>
@@ -683,7 +1213,14 @@
     <div class="stack-item"><span class="layer">Production server</span><span class="name">Gunicorn</span></div>
     <div class="stack-item"><span class="layer">Linting / Format</span><span class="name">Ruff</span></div>
     <div class="stack-item"><span class="layer">Testing</span><span class="name">pytest · pytest-cov</span></div>
-    <div class="stack-item"><span class="layer">Infra</span><span class="name">Docker Compose</span></div>
+    <div class="stack-item"><span class="layer">Local infra</span><span class="name">Docker Compose</span></div>
+    <div class="stack-item"><span class="layer">Cloud infra</span><span class="name">Terraform ≥ 1.6</span></div>
+    <div class="stack-item"><span class="layer">CI/CD</span><span class="name">GitHub Actions</span></div>
+    <div class="stack-item"><span class="layer">Container registry</span><span class="name">AWS ECR</span></div>
+    <div class="stack-item"><span class="layer">Load balancer</span><span class="name">AWS ALB</span></div>
+    <div class="stack-item"><span class="layer">DDoS / WAF</span><span class="name">AWS WAF v2</span></div>
+    <div class="stack-item"><span class="layer">Secrets</span><span class="name">AWS Secrets Manager</span></div>
+    <div class="stack-item"><span class="layer">Compute (cloud)</span><span class="name">AWS ECS Fargate</span></div>
   </div>
 </section>
 

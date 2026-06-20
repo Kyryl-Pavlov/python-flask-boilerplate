@@ -5,13 +5,15 @@ import traceback
 from enum import Enum
 from typing import Any, Protocol
 
-from app.logging.data_filter import mask_sensitive
+from app.logging.data_filter import mask_sensitive, sanitize_traceback
 
 
 class LoggerProtocol(Protocol):
     def info(self, message: str, data: dict[str, Any] | None = None) -> None: ...
     def warning(self, message: str, data: dict[str, Any] | None = None) -> None: ...
-    def error(self, message: str, data: dict[str, Any] | None = None, trace: str | None = None) -> None: ...
+    def error(
+        self, message: str, data: dict[str, Any] | None = None, trace: str | None = None
+    ) -> None: ...
 
 
 class ConsoleLogger:
@@ -21,7 +23,9 @@ class ConsoleLogger:
         self._logger = logging.getLogger(name)
         if not self._logger.handlers:
             handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+            handler.setFormatter(
+                logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+            )
             self._logger.addHandler(handler)
         self._logger.setLevel(logging.DEBUG if debug else logging.WARNING)
 
@@ -31,7 +35,9 @@ class ConsoleLogger:
     def warning(self, message: str, data: dict[str, Any] | None = None) -> None:
         self._logger.warning(message if data is None else f"{message} | data={data}")
 
-    def error(self, message: str, data: dict[str, Any] | None = None, trace: str | None = None) -> None:
+    def error(
+        self, message: str, data: dict[str, Any] | None = None, trace: str | None = None
+    ) -> None:
         parts = [message]
         if data is not None:
             parts.append(f"data={data}")
@@ -52,7 +58,7 @@ class AppLogger:
     def log(
         self,
         message: str,
-        level: "AppLogger.Level" = Level.INFO,
+        level: AppLogger.Level = Level.INFO,
         data: dict[str, Any] | None = None,
         exc: BaseException | None = None,
     ) -> None:
@@ -65,9 +71,10 @@ class AppLogger:
             case AppLogger.Level.ERROR:
                 trace: str | None = None
                 if exc is not None:
-                    trace = "".join(
+                    raw = "".join(
                         traceback.format_exception(type(exc), exc, exc.__traceback__)
                     )
+                    trace = sanitize_traceback(raw)
                 self.__error(message, safe_data, trace)
 
     def __info(self, message: str, data: dict[str, Any] | None) -> None:
@@ -78,6 +85,8 @@ class AppLogger:
         for logger in self._loggers:
             logger.warning(message, data)
 
-    def __error(self, message: str, data: dict[str, Any] | None, trace: str | None) -> None:
+    def __error(
+        self, message: str, data: dict[str, Any] | None, trace: str | None
+    ) -> None:
         for logger in self._loggers:
             logger.error(message, data, trace)

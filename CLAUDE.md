@@ -2,6 +2,46 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Security Measures
+
+The following security controls are intentionally in place. Do not remove or weaken them without a documented reason.
+
+### Application
+
+| Measure | Location | Rule |
+|---|---|---|
+| `SECRET_KEY` fail-fast | `app/config.py` — `_require()` | Raises `RuntimeError` at startup if unset. Never add a default fallback value. |
+| `MAX_CONTENT_LENGTH` | `app/config.py` | 50 MB hard limit on all uploads — Flask enforces this before any handler runs. |
+| File upload allowlist | `app/api/v1/media.py` — `_ALLOWED_EXTENSIONS` | Allowlist of safe extensions only. Extend deliberately; never switch to a blocklist. |
+| SQL masking in logs | `app/logging/data_filter.py` — `sanitize_traceback()` | Strips `[SQL: ...]`, `[parameters: ...]`, and connection strings from every traceback before it reaches any log backend. Lambda has an inline equivalent `_safe_exc()` in `lambda/handler.py`. |
+| GraphQL introspection | `app/graphql_api/__init__.py` + `app/config.py` | `GRAPHQL_INTROSPECTION = True` in `DevelopmentConfig` only; `False` in `ProductionConfig`. Do not hardcode `True`. |
+| Explicit JWT algorithm | `app/config.py` — `JWT_ALGORITHM = "HS256"` | Pinned to prevent silent algorithm changes on library upgrades. |
+
+### Infrastructure (Terraform)
+
+| Measure | Location | Rule |
+|---|---|---|
+| Redis TLS | `terraform/modules/elasticache/main.tf` | `transit_encryption_enabled = true`. Output URL is `rediss://` (double-s). Both must stay in sync. |
+| Non-root containers | `Dockerfile`, `lambda/Dockerfile`, `lambda/Dockerfile.lambda` | App uses a `app` system user; Lambda uses `nobody`. The `USER` instruction must remain after all `COPY`/`RUN` steps. |
+| ECS task role SQS scope | `terraform/modules/iam/main.tf` | Flask app: `sqs:SendMessage` + `sqs:GetQueueAttributes` only. Lambda worker: `ReceiveMessage` + `DeleteMessage`. Never cross-assign. |
+| Secrets Manager recovery | `terraform/main.tf`, `terraform/modules/rds/main.tf` | `recovery_window_in_days = 7`. Never set to `0` in committed code (risk of unrecoverable accidental deletion). |
+| WAF logging | `terraform/modules/waf/main.tf` | CloudWatch log group `aws-waf-logs-{prefix}`, 90-day retention. Do not remove `aws_wafv2_web_acl_logging_configuration`. |
+
+### Nginx
+
+| Measure | Location | Rule |
+|---|---|---|
+| Security headers | `nginx/nginx.conf` | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `server_tokens off`. All use `always` flag so they apply to error responses too. |
+| HSTS | `nginx/nginx.conf` (commented) | Enable `Strict-Transport-Security` **only after** TLS is live on the ALB. Enabling it over HTTP permanently breaks access for returning visitors. |
+
+### Intentional gaps (not implemented by design)
+
+- **Content-Security-Policy** — commented in `nginx/nginx.conf`. A CSP covering the GraphQL playground requires per-deployment origin config; a wrong CSP silently breaks the playground. Add once you know your frontend origins.
+- **HSTS** — see above.
+- **Redis AUTH token** — cluster is in a private subnet accessible only via security group. Add `auth_token` when moving to multi-tenant or shared infrastructure.
+- **MIME type sniffing** — files go to S3 and are never executed server-side; extension allowlisting is sufficient. Add `python-magic` if serving files from a public CDN without `Content-Disposition: attachment`.
+- **JWT refresh token blacklisting** — stateless by design. Add a Redis-backed blacklist if logout must immediately invalidate tokens.
+
 ## Common Commands
 
 ```bash
@@ -391,3 +431,188 @@ with patch("app.models.user.bcrypt.gensalt",
 4. Add a REST blueprint in `app/api/v1/` and register it in `app/api/v1/__init__.py`.
 5. Add a GraphQL resolver class in `app/graphql_api/resolvers/` and merge it into the schema via `merge_types` in `app/graphql_api/schema.py`.
 6. Add the corresponding type to `app/graphql_api/types/types.py` if needed.
+
+## Lambda Worker Dockerfiles
+
+`lambda/handler.py` supports two runtimes from the same file:
+- `handler(event, context)` — Lambda entry point, called by AWS when SQS delivers a batch
+- `poll()` — long-running SQS polling loop, called via `if __name__ == "__main__"` for local dev
+
+Two Dockerfiles exist for these two runtimes:
+
+| File | Used by | CMD |
+|---|---|---|
+| `lambda/Dockerfile` | `docker-compose.yml` worker service | `python handler.py` → runs `poll()` |
+| `lambda/Dockerfile.lambda` | `deploy.yml` CI/CD worker image build | `handler.handler` → Lambda RIC calls `handler()` |
+
+Never use `Dockerfile` for the CI/CD image build — it produces a long-running process that is not a valid Lambda container. The deploy workflow already references `Dockerfile.lambda`.
+
+## CI/CD Pipeline
+
+### Workflows
+
+**`.github/workflows/ci.yml`** — triggers on every push and pull request.
+
+Three parallel jobs:
+- `lint` — `ruff format --check` + `ruff check`
+- `test` — `pytest tests/app/unit tests/app/integration` with SQLite in-memory (no Docker)
+- `e2e` — spins up `docker-compose.ci.yml`, runs `pytest tests/app/e2e`, tears down with `-v`
+
+**`.github/workflows/deploy-dev.yml`** — targets the `dev` environment; triggers manually by default (change to `push: branches: [develop]` to enable automatic deploys on merge).
+
+**`.github/workflows/deploy-prod.yml`** — targets the `production` environment; manual trigger only. Approval gate is on the `migrate` job — approving it unlocks `deploy` and `deploy-workers` for the same run.
+
+The two files are intentionally separate — no branch conditionals, each file has one purpose. They are structurally identical; the only differences are the branch image tag (`develop` vs `main`) and the `environment:` value.
+
+### Job structure
+
+```
+build  (all images in parallel)
+  ├── migrate-dev          (develop branch — runs ALL migrations before any deploy)
+  │     ├── deploy-dev         (needs: [build, migrate-dev] — services in tier order)
+  │     └── deploy-workers-dev (needs: [build, migrate-dev] — Lambda workers, parallel with services)
+  └── migrate-prod         (main branch — approval gate; approving unlocks entire prod pipeline)
+        ├── deploy-prod
+        └── deploy-workers-prod
+```
+
+### Deploy order within each environment
+
+Migrations are a separate job that must complete before any service or worker is touched:
+
+1. **`migrate-*`** — runs ALL service migrations as one-off ECS Fargate tasks. If any migration fails the entire pipeline stops. Schema is always ahead of code.
+2. **`deploy-*`** (services) and **`deploy-workers-*`** (Lambda) — start in parallel once migrate completes. Services deploy in tier order within the job (tier-1 first, then dependents); workers are independent.
+
+### Backward-compatible migrations rule
+
+During a rolling ECS update, old and new task instances run simultaneously against the same database. Every migration must be backward-compatible with the currently-deployed code:
+- **Safe**: add a nullable column, add an index, add a table
+- **Unsafe**: drop a column the old code still reads, rename a column, change a type non-compatibly
+
+Use a two-phase approach for breaking changes: first deploy adds the new column (old code ignores it), second deploy removes the old column once all instances run the new code.
+
+### Adding a new microservice
+
+1. Add its ECR repo to `terraform/modules/ecr/main.tf`
+2. Add its ECS service + task definition to `terraform/` (or a new module)
+3. Add a build step to the `build` job in `deploy.yml`
+4. Add a `run_migration` call in `migrate-dev` and `migrate-prod` (if it has its own DB)
+5. Add a deploy step in `deploy-dev` and `deploy-prod` at the correct tier
+6. Add its GitHub environment vars (`*_TASK_FAMILY`, `*_SERVICE`) via `terraform output`
+
+### Required GitHub secrets and variables
+
+**Repository secret** (Settings → Secrets → Actions):
+- `AWS_ROLE_ARN` — IAM role for OIDC authentication, output by `terraform output github_actions_role_arn`
+
+**Per-environment variables** (Settings → Environments → `dev` / `production`):
+- `ECS_CLUSTER`, `ECS_SERVICE`, `APP_TASK_FAMILY` — from `terraform output`
+- `VPC_SUBNETS`, `VPC_SECURITY_GROUPS` — from `terraform output` (used for migration task networking)
+- `LAMBDA_FUNCTION_NAME` — from `terraform output`
+
+### CI stack (`.env.ci`)
+
+The CI stack uses `.env.ci` (committed, contains only fake test credentials). It sets `FLASK_ENV=production` to test the production code path. LocalStack provides S3 and SQS. No real AWS credentials are needed for CI.
+
+## Terraform Infrastructure
+
+All AWS infrastructure is declared in `terraform/`. Terraform is an infra-owner operation — run manually when provisioning or changing infrastructure. The CI/CD pipeline handles all ongoing app deployments.
+
+### Module structure
+
+```
+terraform/
+├── bootstrap/        # Run once: S3 state bucket + DynamoDB lock table (local state)
+├── environments/
+│   ├── dev.tfvars    # Small sizes, no HTTPS, relaxed WAF, no deletion protection
+│   └── prod.tfvars   # Multi-AZ RDS, deletion protection, HTTPS required, 2 ECS tasks
+├── modules/
+│   ├── networking    # VPC, public/private subnets, NAT gateway, 5 security groups, VPC flow logs
+│   ├── ecr           # ECR repos for app + worker; scan on push; keep last 10 images
+│   ├── iam           # ECS task execution role, ECS task role, Lambda role, GitHub OIDC role
+│   ├── rds           # PostgreSQL 16 encrypted; DATABASE_URL secret in Secrets Manager
+│   ├── elasticache   # Redis 7 replication group; encrypted at rest
+│   ├── s3            # Media bucket; public access blocked; HTTPS-only bucket policy
+│   ├── sqs           # events queue + DLQ; SSE; redrive after 3 failures
+│   ├── alb           # ALB; HTTP→HTTPS redirect; TLS 1.3; drop invalid headers
+│   ├── waf           # OWASP Top 10, bad inputs, SQLi, per-IP rate limit
+│   ├── ecs           # Fargate cluster; task def with secrets from Secrets Manager; service
+│   └── lambda        # Container image function in VPC; SQS event source mapping
+├── main.tf           # Wires all modules; creates JWT + Flask app secrets in Secrets Manager
+├── variables.tf      # All inputs (sizes, flags, image URIs, GitHub org/repo, state bucket)
+├── outputs.tf        # All values needed for GitHub environment vars, labelled
+└── versions.tf       # AWS ~> 5.0, random ~> 3.0; partial S3 backend
+```
+
+### State management
+
+State is stored in S3 with DynamoDB locking. The S3 bucket and DynamoDB table are created by `terraform/bootstrap/` with local state (the bootstrap is the only exception to "never use local state").
+
+`backend.hcl` — fill-in file referencing the state bucket and lock table. **Gitignored** — never committed.
+
+### Bootstrap and first deploy
+
+```bash
+# 1. Create state infrastructure (once per AWS account)
+cd terraform/bootstrap
+terraform init
+terraform apply -var="bucket_name=myorg-flask-boilerplate-tfstate"
+# Copy outputs → fill in backend.hcl and environments/*.tfvars
+
+# 2. Init main module
+cd ../
+terraform init -backend-config=backend.hcl
+
+# 3. Create ECR repos first (images must exist before ECS/Lambda can be created)
+terraform apply -target=module.ecr -var-file=environments/dev.tfvars
+
+# 4. Push initial images to ECR, then set app_image and worker_image in dev.tfvars
+
+# 5. Full apply
+terraform apply -var-file=environments/dev.tfvars
+
+# 6. Populate GitHub environment vars
+terraform output
+```
+
+### Secrets management
+
+All sensitive values are generated by Terraform and stored in AWS Secrets Manager:
+- `DATABASE_URL` — constructed from RDS endpoint + random password; injected into ECS containers via the `secrets` field in the task definition (not environment variables)
+- `JWT_SECRET_KEY` — 64-char random string
+- `SECRET_KEY` (Flask) — 64-char random string
+
+Secrets are injected at container startup by the ECS agent using the task execution role. The app code reads them as plain environment variables (`os.environ["DATABASE_URL"]`) — no Secrets Manager SDK calls needed in app code.
+
+### IAM roles
+
+| Role | Principal | Permissions |
+|---|---|---|
+| `ecs-task-execution` | ECS agent | ECR pull, CloudWatch logs, read specific Secrets Manager ARNs |
+| `ecs-task` | Flask app | S3 read/write (media bucket), SQS send/receive, CloudWatch logs |
+| `lambda` | Lambda service | SQS consume, S3 read/write, Secrets Manager read, VPC networking |
+| `github-actions` | GitHub OIDC | ECR push, ECS update, Lambda update, register task def, read/write state bucket, DynamoDB lock |
+
+The GitHub Actions role uses OIDC — no long-lived AWS credentials are stored in GitHub. The trust policy is scoped to the specific repo and the `main`/`develop` branches only.
+
+### Security group rules
+
+| From | To | Port | Protocol |
+|---|---|---|---|
+| Internet | ALB | 80, 443 | TCP |
+| ALB | ECS tasks | 5000 | TCP |
+| ECS tasks | RDS | 5432 | TCP |
+| ECS tasks | Redis | 6379 | TCP |
+| ECS tasks | Internet | 443 | TCP (outbound: ECR, Secrets Manager, CloudWatch) |
+| Lambda | RDS | 5432 | TCP |
+| Lambda | Redis | 6379 | TCP |
+| Lambda | Internet | 443 | TCP (outbound: AWS APIs) |
+
+ECS tasks and Lambda have no inbound rules from the internet. RDS and Redis have no outbound rules.
+
+### Lifecycle rules
+
+- `aws_ecs_service`: `ignore_changes = [task_definition, desired_count]` — CI/CD manages these after initial deploy
+- `aws_lambda_function`: `ignore_changes = [image_uri]` — CI/CD manages this
+- `aws_s3_bucket` (state bucket in bootstrap): `prevent_destroy = true`
+- `aws_dynamodb_table` (lock table in bootstrap): `prevent_destroy = true`

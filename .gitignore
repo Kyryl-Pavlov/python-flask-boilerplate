@@ -69,3 +69,16 @@ logs/
 
 # AWS
 .aws/
+
+# Terraform
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/backend.hcl
+terraform/override.tf
+terraform/override.tf.json
+terraform/*_override.tf
+terraform/*_override.tf.json
+terraform/bootstrap/.terraform/
+terraform/bootstrap/terraform.tfstate
+terraform/bootstrap/terraform.tfstate.backup
