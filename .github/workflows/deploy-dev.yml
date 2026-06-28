@@ -50,7 +50,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile
+          file: services/app/Dockerfile
           push: true
           tags: |
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_APP_REPO }}:${{ github.sha }}
@@ -69,7 +69,7 @@ jobs:
       # - name: Build and push <service> image
       #   uses: docker/build-push-action@v6
       #   with:
-      #     context: services/<service>
+      #     context: .
       #     file: services/<service>/Dockerfile
       #     push: true
       #     tags: |

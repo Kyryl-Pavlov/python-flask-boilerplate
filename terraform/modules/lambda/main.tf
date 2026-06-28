@@ -22,9 +22,9 @@ resource "aws_lambda_function" "worker" {
 
   environment {
     variables = {
-      AWS_DEFAULT_REGION = var.aws_region
-      AWS_S3_BUCKET      = var.s3_bucket
-      REDIS_URL          = var.redis_url
+      AWS_S3_BUCKET           = var.s3_bucket
+      REDIS_URL               = var.redis_url
+      SQS_QUEUE_URL           = var.sqs_queue_url
       # DATABASE_URL is fetched from Secrets Manager at runtime via boto3
       DATABASE_URL_SECRET_ARN = var.database_url_secret_arn
     }

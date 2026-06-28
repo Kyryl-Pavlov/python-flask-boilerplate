@@ -44,12 +44,17 @@ services:
       retries: 5
 
   migrate:
-    build: .
+    build:
+      context: .
+      dockerfile: services/app/Dockerfile
     command: sh -c "flask db migrate && flask db upgrade"
     env_file:
       - .env.local
+    environment:
+      FLASK_APP: app
     volumes:
-      - .:/app
+      - ./services/app:/app
+      - ./services/app/migrations:/app/migrations
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,13 +73,13 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: services/app/Dockerfile.dev
     restart: unless-stopped
     ports:
       - "5000:5000"
       - "5678:5678"
     volumes:
-      - .:/app
+      - ./services/app:/app
     env_file:
       - .env.local
     environment:

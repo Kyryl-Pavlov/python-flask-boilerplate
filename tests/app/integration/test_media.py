@@ -6,7 +6,7 @@ _FAKE_S3_KEY = "media/user-id/test.txt"
 _FAKE_URL = "https://s3.example.com/signed-url"
 
 
-def _upload(client, headers, content=b"hello", filename="test.txt"):
+def _upload(client, headers, content=b"hello", filename="test.png"):
     """Helper: POST a file upload with mocked S3."""
     with (
         patch("app.api.v1.media.upload_file", return_value=_FAKE_S3_KEY),
@@ -53,7 +53,7 @@ class TestUpload:
             res = client.post(
                 "/api/v1/media/upload",
                 headers=auth_headers,
-                data={"file": (io.BytesIO(b"data"), "f.txt")},
+                data={"file": (io.BytesIO(b"data"), "f.png")},
                 content_type="multipart/form-data",
             )
         assert res.status_code == 500

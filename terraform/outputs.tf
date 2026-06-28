@@ -46,6 +46,16 @@ output "github_actions_role_arn" {
 
 # ── ECR ──────────────────────────────────────────────────────────────────────
 
+output "ecr_app_repository_name" {
+  description = "→ GitHub var: ECR_APP_REPO"
+  value       = module.ecr.app_repository_name
+}
+
+output "ecr_worker_repository_name" {
+  description = "→ GitHub var: ECR_WORKER_REPO"
+  value       = module.ecr.worker_repository_name
+}
+
 output "ecr_app_repository_url" {
   description = "ECR URL for the Flask app — use in app_image tfvar after first push."
   value       = module.ecr.app_repository_url

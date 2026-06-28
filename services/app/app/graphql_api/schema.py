@@ -1,4 +1,5 @@
 import strawberry
+from strawberry.extensions import DisableIntrospection
 from strawberry.tools import merge_types
 
 from app.graphql_api.resolvers.auth import AuthMutations
@@ -14,4 +15,7 @@ Mutation = merge_types(
     "Mutation", (AuthMutations, MediaMutations, CacheTestMutations, EventMutations)
 )
 
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+
+def create_schema(introspection: bool = True) -> strawberry.Schema:
+    extensions = [] if introspection else [DisableIntrospection]
+    return strawberry.Schema(query=Query, mutation=Mutation, extensions=extensions)
