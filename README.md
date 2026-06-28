@@ -79,64 +79,41 @@ Every feature is exposed over **both REST and GraphQL**. Both share the same dat
 
 ```
 .
-├── app/
-│   ├── __init__.py          # App factory (create_app)
-│   ├── config.py            # Dev / Prod / Test config classes
-│   ├── extensions.py        # db, migrate, jwt singletons
-│   ├── models/              # SQLAlchemy models (User, Media, Event)
-│   ├── services/            # External integrations (S3, SQS)
-│   ├── logging/             # AppLogger, SentryLogger, CloudWatchLogger, data_filter
-│   ├── api/
-│   │   └── v1/              # REST blueprints (auth, media, events, cache, health)
-│   └── graphql_api/
-│       ├── resolvers/       # GraphQL mutations and queries
-│       ├── types/           # Strawberry type definitions
-│       ├── utils.py         # Shared GraphQL helpers (model → type converters)
-│       └── schema.py        # Merged GraphQL schema
+├── services/                        # One folder per microservice
+│   └── app/                         # Flask REST + GraphQL API
+│       ├── app/
+│       │   ├── __init__.py          # App factory (create_app)
+│       │   ├── config.py            # Dev / Prod / Test config classes
+│       │   ├── extensions.py        # db, migrate, jwt singletons
+│       │   ├── models/              # SQLAlchemy models (User, Media, Event)
+│       │   ├── services/            # External integrations (S3, SQS)
+│       │   ├── logging/             # AppLogger, SentryLogger, CloudWatchLogger, data_filter
+│       │   ├── api/
+│       │   │   └── v1/              # REST blueprints (auth, media, events, cache, health)
+│       │   └── graphql_api/
+│       │       ├── resolvers/       # GraphQL mutations and queries
+│       │       ├── types/           # Strawberry type definitions
+│       │       ├── utils.py         # Shared GraphQL helpers (model → type converters)
+│       │       └── schema.py        # Merged GraphQL schema
+│       ├── Dockerfile               # Production image (gunicorn)
+│       └── Dockerfile.dev           # Dev image (Flask dev server + debugpy)
 ├── lambda/
 │   ├── handler.py           # Shared: handler(event, context) for Lambda + poll() for local dev
 │   ├── Dockerfile           # Local dev — long-polling worker (used by docker-compose)
 │   ├── Dockerfile.lambda    # AWS Lambda — uses Lambda Python base image
 │   └── requirements.txt     # Lambda dependencies (boto3, sqlalchemy, psycopg2)
-├── .github/
-│   └── workflows/
-│       ├── ci.yml           # Lint + test on every push and pull request
-│       └── deploy.yml       # Build images → push to ECR → deploy to ECS + Lambda (manual trigger)
-├── terraform/
-│   ├── bootstrap/           # Run once: creates S3 state bucket + DynamoDB lock table
-│   ├── environments/
-│   │   ├── dev.tfvars       # Dev-specific sizes and flags
-│   │   └── prod.tfvars      # Prod: Multi-AZ, deletion protection, HTTPS
-│   ├── modules/
-│   │   ├── networking/      # VPC, NAT gateway, subnets, security groups, VPC flow logs
-│   │   ├── ecr/             # ECR repositories for app and worker images
-│   │   ├── iam/             # ECS roles, Lambda role, GitHub OIDC deploy role
-│   │   ├── rds/             # PostgreSQL on RDS + DATABASE_URL stored in Secrets Manager
-│   │   ├── elasticache/     # Redis (ElastiCache replication group)
-│   │   ├── s3/              # Media bucket with encryption + HTTPS-only policy
-│   │   ├── sqs/             # Events queue + dead-letter queue
-│   │   ├── alb/             # Application Load Balancer with HTTP→HTTPS redirect
-│   │   ├── waf/             # WAF: OWASP Top 10, SQLi rules, per-IP rate limit
-│   │   ├── ecs/             # Fargate cluster, task definition, service
-│   │   └── lambda/          # Container image Lambda function + SQS event source
-│   ├── main.tf              # Root module — wires all child modules
-│   ├── variables.tf         # All input variables with descriptions
-│   ├── outputs.tf           # Outputs map directly to GitHub environment vars
-│   ├── versions.tf          # Provider pins + S3 backend stub
-│   └── backend.hcl          # Fill-in template — gitignored, never committed
-├── nginx/
-│   └── nginx.conf           # Reverse proxy config with DDoS protection
 ├── migrations/              # Alembic migration files (auto-generated on up --build)
-├── Dockerfile               # Production image (gunicorn)
-├── Dockerfile.dev           # Dev image (Flask dev server + debugpy)
 ├── docker-compose.yml       # Full local stack
-├── wsgi.py                  # Production entrypoint
-├── migrate.sh               # Interactive migration helper
-├── start_infra.sh           # Start only DB + S3 (for host debugging)
-└── .vscode/
-    ├── launch.json          # VSCode debug configurations
-    └── tasks.json           # Pre/post debug tasks
+├── wsgi.py                  # Production entrypoint (accessible to Docker build context)
+├── requirements.txt         # App dependencies (accessible to Docker build context)
+└── .github/
+    └── workflows/
+        ├── ci.yml           # Lint + test on every push to main/develop and pull request
+        ├── deploy-dev.yml   # Build → ECR → ECS + Lambda deploy (dev environment)
+        └── deploy-prod.yml  # Build → ECR → ECS + Lambda deploy (production, manual approval)
 ```
+
+> **Why `wsgi.py`, `migrations/`, and `requirements*.txt` stay at the repo root:** Docker build context is anchored at `.` so all Dockerfiles can reach them. Moving them inside `services/app/` would require changing the build context, which prevents a single Dockerfile from referencing files across multiple services.
 
 ---
 
@@ -549,8 +526,9 @@ All external traffic enters through **Nginx on port 80** (`nginx/nginx.conf`). T
 
 **Adding a new microservice:**
 
-1. Add the service to `docker-compose.yml` — no port exposure needed (stays internal).
-2. Add an upstream and a location block to `nginx/nginx.conf`:
+1. Create `services/<name>/` with `Dockerfile` and `Dockerfile.dev`.
+2. Add the service to `docker-compose.yml` — no port exposure needed (stays internal).
+3. Add an upstream and a location block to `nginx/nginx.conf`:
 
 ```nginx
 upstream payments {
@@ -564,7 +542,7 @@ location /payments/ {
 }
 ```
 
-3. Reload Nginx without downtime:
+4. Reload Nginx without downtime:
 
 ```bash
 docker compose up -d payments
@@ -614,7 +592,7 @@ The `worker` container (`lambda/handler.py`) polls SQS using long-polling (`Wait
 | File | Used by | Runtime |
 |---|---|---|
 | `lambda/Dockerfile` | `docker-compose.yml` | Long-polling loop (`poll()`) — blocks and polls SQS continuously |
-| `lambda/Dockerfile.lambda` | `deploy.yml` CI/CD | AWS Lambda base image — Lambda runtime invokes `handler()` per SQS batch |
+| `lambda/Dockerfile.lambda` | `deploy-dev.yml` / `deploy-prod.yml` CI/CD | AWS Lambda base image — Lambda runtime invokes `handler()` per SQS batch |
 
 The CI/CD pipeline builds `Dockerfile.lambda` and pushes it to ECR. On AWS, `DATABASE_URL` points to RDS, `SQS_QUEUE_URL` to the real queue, and `AWS_SQS_ENDPOINT_URL` is unset (boto3 routes to real AWS automatically).
 
@@ -857,7 +835,7 @@ build  ── all images pushed to ECR before anything deploys
 
 **Why migrations are a separate job:** during a rolling ECS update, old and new task instances run simultaneously against the same database. Migrations must complete and be backward-compatible before any instance picks up the new code.
 
-**Adding a new microservice:** add a build step to `build`, a `run_migration` call in both `migrate-*` jobs, and a deploy step at the correct tier in both `deploy-*` jobs. Workers go in `deploy-workers-*`.
+**Adding a new microservice:** add a build step to `build` with `context: .` and `file: services/<name>/Dockerfile`, a `run_migration` call in both `migrate-*` jobs, and a deploy step at the correct tier in both `deploy-*` jobs. Workers go in `deploy-workers-*`.
 
 The production approval gate is a native GitHub feature: create a `production` environment in **Settings → Environments**, add required reviewers, and the workflow pauses automatically.
 
@@ -1199,11 +1177,12 @@ The only app-side requirement is the `/metrics` endpoint — ADOT picks it up au
 
 ## Production Image
 
-The production Docker image uses `Dockerfile` (gunicorn, 4 workers, no debugpy). To smoke-test it in isolation:
+The production Docker image uses `services/app/Dockerfile` (gunicorn, 4 workers, no debugpy). To smoke-test it in isolation:
 
 ```bash
-bash launch_app_docker_image.sh
-# To stop: docker stop flask-boilerplate
+bash launch_app_docker_image.sh          # builds services/app/Dockerfile (default)
+bash launch_app_docker_image.sh payments # builds services/payments/Dockerfile for future services
+# To stop: docker stop flask-boilerplate-<service>
 ```
 
 This starts only the app container with no database or LocalStack, so any endpoint that touches Postgres or S3 will fail. Use it only to verify the image builds and the process starts cleanly.

@@ -1,15 +1,17 @@
 #!/bin/bash
-# Only launches App container
+# Builds and launches a single service container (no infrastructure).
+# Usage: ./launch_app_docker_image.sh [service]   (default: app)
 set -e
 
-IMAGE_NAME="flask-boilerplate"
+SERVICE="${1:-app}"
+IMAGE_NAME="flask-boilerplate-${SERVICE}"
 PORT=5000
 
-echo "Building Docker image..."
-docker build -t $IMAGE_NAME .
+echo "Building Docker image for service: $SERVICE..."
+docker build -f "services/${SERVICE}/Dockerfile" -t "$IMAGE_NAME" .
 
 echo "Starting container..."
-docker run --rm -d -p $PORT:$PORT --name $IMAGE_NAME $IMAGE_NAME
+docker run --rm -d -p $PORT:$PORT --name "$IMAGE_NAME" "$IMAGE_NAME"
 
 echo "Waiting for server to start..."
 sleep 2

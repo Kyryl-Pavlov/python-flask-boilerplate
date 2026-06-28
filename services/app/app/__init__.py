@@ -72,7 +72,9 @@ def create_app(config_name=None):
 
     app.register_blueprint(api_module.bp, url_prefix=f"/api/{REST_API_V}")
     app.add_url_rule(
-        "/graphql", view_func=create_graphql_view(), methods=["GET", "POST"]
+        "/graphql",
+        view_func=create_graphql_view(app.config.get("GRAPHQL_INTROSPECTION", False)),
+        methods=["GET", "POST"],
     )
 
     @app.before_request

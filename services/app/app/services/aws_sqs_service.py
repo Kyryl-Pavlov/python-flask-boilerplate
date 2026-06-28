@@ -26,7 +26,9 @@ def send_event(event_type: str, payload: dict) -> str:
     """Publish an event to the SQS queue. Returns the SQS MessageId."""
     queue_url = current_app.config["SQS_QUEUE_URL"]
     client = _client()
-    _ensure_queue(client, queue_url)
+    if current_app.config.get("AWS_SQS_ENDPOINT_URL"):
+        # LocalStack only — queue is pre-created by Terraform in production
+        _ensure_queue(client, queue_url)
     body = json.dumps({"type": event_type, "payload": payload})
     response = client.send_message(QueueUrl=queue_url, MessageBody=body)
     return response["MessageId"]
