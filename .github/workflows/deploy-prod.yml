@@ -12,15 +12,13 @@ on:
 # Required GitHub configuration (Settings → Environments → production):
 #   vars.ECS_CLUSTER  vars.ECS_SERVICE  vars.APP_TASK_FAMILY
 #   vars.VPC_SUBNETS  vars.VPC_SECURITY_GROUPS  vars.LAMBDA_FUNCTION_NAME
+#   vars.ECR_APP_REPO    — from: terraform output ecr_app_repository_name
+#   vars.ECR_WORKER_REPO — from: terraform output ecr_worker_repository_name
+#   vars.AWS_REGION
 #   (all values printed by: terraform output)
 #
 # Repository secret (Settings → Secrets → Actions):
 #   secrets.AWS_ROLE_ARN  — from: terraform output github_actions_role_arn
-
-env:
-  AWS_REGION:       us-east-1
-  ECR_APP_REPO:     flask-boilerplate/app
-  ECR_WORKER_REPO:  flask-boilerplate/worker
 
 jobs:
 
@@ -28,6 +26,7 @@ jobs:
   build:
     name: Build & Push Images
     runs-on: ubuntu-latest
+    environment: production
     outputs:
       image-tag:    ${{ github.sha }}
       ecr-registry: ${{ steps.ecr-login.outputs.registry }}
@@ -41,7 +40,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: ecr-login
@@ -54,8 +53,8 @@ jobs:
           file: services/app/Dockerfile
           push: true
           tags: |
-            ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_APP_REPO }}:${{ github.sha }}
-            ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_APP_REPO }}:main
+            ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_APP_REPO }}:${{ github.sha }}
+            ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_APP_REPO }}:main
 
       - name: Build and push worker image
         uses: docker/build-push-action@v6
@@ -64,8 +63,8 @@ jobs:
           file: lambda/Dockerfile.lambda
           push: true
           tags: |
-            ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_WORKER_REPO }}:${{ github.sha }}
-            ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_WORKER_REPO }}:main
+            ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_WORKER_REPO }}:${{ github.sha }}
+            ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_WORKER_REPO }}:main
 
       # - name: Build and push <service> image
       #   uses: docker/build-push-action@v6
@@ -94,7 +93,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Run migrations
         env:
@@ -139,7 +138,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       # Tier 1 — services with no inter-service dependencies
       - name: Deploy app
@@ -147,7 +146,7 @@ jobs:
           CURRENT=$(aws ecs describe-task-definition \
             --task-definition "${{ vars.APP_TASK_FAMILY }}" --query taskDefinition)
           NEW_DEF=$(echo "$CURRENT" | jq \
-            --arg img "${{ env.ECR_REGISTRY }}/${{ env.ECR_APP_REPO }}:${{ env.IMAGE_TAG }}" \
+            --arg img "${{ env.ECR_REGISTRY }}/${{ vars.ECR_APP_REPO }}:${{ env.IMAGE_TAG }}" \
             'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)
              | .containerDefinitions[0].image = $img')
           ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_DEF" \
@@ -182,13 +181,13 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Update SQS worker
         run: |
           aws lambda update-function-code \
             --function-name "${{ vars.LAMBDA_FUNCTION_NAME }}" \
-            --image-uri "${{ env.ECR_REGISTRY }}/${{ env.ECR_WORKER_REPO }}:${{ env.IMAGE_TAG }}"
+            --image-uri "${{ env.ECR_REGISTRY }}/${{ vars.ECR_WORKER_REPO }}:${{ env.IMAGE_TAG }}"
           aws lambda wait function-updated \
             --function-name "${{ vars.LAMBDA_FUNCTION_NAME }}"
           echo "✓ SQS worker updated"
