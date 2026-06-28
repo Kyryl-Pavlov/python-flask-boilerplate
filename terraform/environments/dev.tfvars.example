@@ -1,15 +1,15 @@
 environment         = "dev"
-github_org          = "Kyryl-Pavlov"
-github_repo         = "python-flask-boilerplate"
-tf_state_bucket     = "kporg-flask-boilerplate-tfstate"
-tf_state_lock_table = "kporg-flask-boilerplate-tfstate-lock"
+github_org          = "YOUR_GITHUB_ORG"
+github_repo         = "YOUR_GITHUB_REPO"
+tf_state_bucket     = "YOUR_ORG-flask-boilerplate-tfstate"
+tf_state_lock_table = "YOUR_ORG-flask-boilerplate-tfstate-lock"
 
 # Bootstrap order:
-#   1. terraform apply -target=module.ecr
+#   1. terraform apply -target=module.ecr -var-file=environments/dev.tfvars
 #   2. Push images to ECR (or run the deploy workflow manually)
 #   3. Set the two values below and run terraform apply
-app_image    = "518079878683.dkr.ecr.us-east-1.amazonaws.com/flask-boilerplate-dev/app:latest"
-worker_image = "518079878683.dkr.ecr.us-east-1.amazonaws.com/flask-boilerplate-dev/worker:latest"
+app_image    = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/flask-boilerplate-dev/app:latest"
+worker_image = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/flask-boilerplate-dev/worker:latest"
 
 # Smallest sizes — cost optimised for dev
 rds_instance_class      = "db.t3.micro"

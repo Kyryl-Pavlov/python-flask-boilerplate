@@ -10,7 +10,19 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+
+def _get_database_url() -> str:
+    secret_arn = os.environ.get("DATABASE_URL_SECRET_ARN")
+    if secret_arn:
+        sm = boto3.client(
+            "secretsmanager",
+            region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
+        )
+        return sm.get_secret_value(SecretId=secret_arn)["SecretString"]
+    return os.environ["DATABASE_URL"]
+
+
+DATABASE_URL = _get_database_url()
 SQS_QUEUE_URL = os.environ["SQS_QUEUE_URL"]
 POLL_WAIT_SECONDS = int(os.environ.get("POLL_WAIT_SECONDS", "5"))
 

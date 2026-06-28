@@ -184,12 +184,12 @@ module "lambda" {
 
   app_name                = var.app_name
   environment             = var.environment
-  aws_region              = var.aws_region
   worker_image            = var.worker_image
   role_arn                = module.iam.lambda_role_arn
   security_group_id       = module.networking.lambda_security_group_id
   subnet_ids              = module.networking.private_subnet_ids
   sqs_queue_arn           = module.sqs.queue_arn
+  sqs_queue_url           = module.sqs.queue_url
   database_url_secret_arn = module.rds.database_url_secret_arn
   redis_url               = module.elasticache.redis_url
   s3_bucket               = module.s3.bucket_name
